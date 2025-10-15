@@ -4,15 +4,31 @@
       <div class="nav-brand">
         <h1>🇯🇵 日语学习助手</h1>
       </div>
-      <button @click="toggleLanguage" class="language-toggle">
-        {{ dataStore.showJapanese ? '🇯🇵' : '🇨🇳' }}
-        {{ dataStore.showJapanese ? '日文' : '中文' }}
-      </button>
+      <div class="nav-controls">
+        <div v-if="dataStore.isOnline" class="sync-status">
+          <div class="status-indicator online"></div>
+          <span>云端同步</span>
+        </div>
+        <button @click="toggleLanguage" class="language-toggle">
+          {{ dataStore.showJapanese ? '🇯🇵' : '🇨🇳' }}
+          {{ dataStore.showJapanese ? '日文' : '中文' }}
+        </button>
+        <button @click="showAuth = true" class="auth-button">
+          {{ dataStore.isOnline ? '设置' : '登录' }}
+        </button>
+      </div>
     </nav>
     
     <main class="main-content">
       <router-view />
     </main>
+    
+    <!-- 认证弹窗 -->
+    <div v-if="showAuth" class="auth-modal" @click="showAuth = false">
+      <div class="auth-modal-content" @click.stop>
+        <Auth @close="showAuth = false" />
+      </div>
+    </div>
     
     <nav class="bottom-nav">
       <router-link to="/" class="nav-item">
@@ -44,12 +60,18 @@
 </template>
 
 <script>
+import { ref } from 'vue'
 import { useDataStore } from './stores/dataStore'
+import Auth from './components/Auth.vue'
 
 export default {
   name: 'App',
+  components: {
+    Auth
+  },
   setup() {
     const dataStore = useDataStore()
+    const showAuth = ref(false)
     
     const toggleLanguage = () => {
       dataStore.toggleLanguage()
@@ -57,6 +79,7 @@ export default {
 
     return {
       dataStore,
+      showAuth,
       toggleLanguage
     }
   }
@@ -78,6 +101,45 @@ export default {
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 5px 10px;
+  border-radius: 15px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4CAF50;
+}
+
+.auth-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.auth-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .nav-brand h1 {
@@ -150,6 +212,30 @@ export default {
   font-weight: 500;
 }
 
+/* 认证弹窗样式 */
+.auth-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.auth-modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
 /* 移动端优化 */
 @media (max-width: 480px) {
   .main-content {
@@ -158,6 +244,20 @@ export default {
   
   .nav-brand h1 {
     font-size: 1.3rem;
+  }
+  
+  .nav-controls {
+    gap: 5px;
+  }
+  
+  .sync-status {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+  }
+  
+  .auth-button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
   }
 }
 </style>

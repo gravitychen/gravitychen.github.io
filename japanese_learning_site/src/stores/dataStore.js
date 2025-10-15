@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import dataService from '../firebase/dataService.js'
+import authService from '../firebase/authService.js'
 
 export const useDataStore = defineStore('data', {
   state: () => ({
@@ -7,7 +9,10 @@ export const useDataStore = defineStore('data', {
     qa: JSON.parse(localStorage.getItem('japanese_qa') || '[]'),
     reviewProgress: JSON.parse(localStorage.getItem('review_progress') || '{}'),
     quizHistory: JSON.parse(localStorage.getItem('quiz_history') || '[]'),
-    showJapanese: JSON.parse(localStorage.getItem('show_japanese') || 'true') // 默认显示日文
+    showJapanese: JSON.parse(localStorage.getItem('show_japanese') || 'true'), // 默认显示日文
+    isOnline: false, // 是否已连接到云端
+    syncInProgress: false, // 是否正在同步
+    lastSyncTime: null // 最后同步时间
   }),
 
   getters: {
@@ -50,21 +55,129 @@ export const useDataStore = defineStore('data', {
   },
 
   actions: {
+    // 初始化云端同步
+    async initializeCloudSync() {
+      // 监听认证状态
+      authService.onAuthStateChange(async (user) => {
+        if (user) {
+          this.isOnline = true
+          await this.syncFromCloud()
+          this.setupRealtimeSync()
+        } else {
+          this.isOnline = false
+        }
+      })
+    },
+
+    // 设置实时同步
+    setupRealtimeSync() {
+      // 监听单词变化
+      dataService.listenToData('words', (words) => {
+        this.words = words
+        this.saveWords()
+      })
+
+      // 监听句子变化
+      dataService.listenToData('sentences', (sentences) => {
+        this.sentences = sentences
+        this.saveSentences()
+      })
+
+      // 监听问答变化
+      dataService.listenToData('qa', (qa) => {
+        this.qa = qa
+        this.saveQA()
+      })
+    },
+
+    // 从云端同步数据
+    async syncFromCloud() {
+      if (!this.isOnline) return
+
+      try {
+        this.syncInProgress = true
+        
+        // 获取云端数据
+        const [words, sentences, qa] = await Promise.all([
+          dataService.getAllData('words'),
+          dataService.getAllData('sentences'),
+          dataService.getAllData('qa')
+        ])
+
+        // 更新本地数据
+        this.words = words
+        this.sentences = sentences
+        this.qa = qa
+
+        // 保存到本地存储
+        this.saveWords()
+        this.saveSentences()
+        this.saveQA()
+
+        this.lastSyncTime = new Date().toISOString()
+      } catch (error) {
+        console.error('云端同步失败:', error)
+      } finally {
+        this.syncInProgress = false
+      }
+    },
+
+    // 将本地数据上传到云端
+    async syncToCloud() {
+      if (!this.isOnline) return
+
+      try {
+        this.syncInProgress = true
+        
+        // 上传所有数据到云端
+        await Promise.all([
+          dataService.importData('words', this.words),
+          dataService.importData('sentences', this.sentences),
+          dataService.importData('qa', this.qa)
+        ])
+
+        this.lastSyncTime = new Date().toISOString()
+      } catch (error) {
+        console.error('上传到云端失败:', error)
+      } finally {
+        this.syncInProgress = false
+      }
+    },
+
     // 单词管理
-    addWord(word) {
+    async addWord(word) {
       const newWord = {
         id: Date.now(),
         japanese: word.japanese,
         chinese: word.chinese,
         createdAt: new Date().toISOString()
       }
+      
       this.words.push(newWord)
       this.saveWords()
+
+      // 如果在线，同步到云端
+      if (this.isOnline) {
+        try {
+          await dataService.addData('words', newWord)
+        } catch (error) {
+          console.error('同步单词到云端失败:', error)
+        }
+      }
     },
 
-    deleteWord(id) {
+    async deleteWord(id) {
       this.words = this.words.filter(word => word.id !== id)
       this.saveWords()
+
+      // 如果在线，从云端删除
+      if (this.isOnline) {
+        try {
+          await dataService.deleteData('words', id)
+        } catch (error) {
+          console.error('从云端删除单词失败:', error)
+        }
+      }
     },
 
     saveWords() {
@@ -72,7 +185,7 @@ export const useDataStore = defineStore('data', {
     },
 
     // 句子管理
-    addSentence(sentence) {
+    async addSentence(sentence) {
       const newSentence = {
         id: Date.now(),
         japanese: sentence.japanese,
@@ -80,13 +193,32 @@ export const useDataStore = defineStore('data', {
         context: sentence.context || '', // 添加使用情境字段
         createdAt: new Date().toISOString()
       }
+      
       this.sentences.push(newSentence)
       this.saveSentences()
+
+      // 如果在线，同步到云端
+      if (this.isOnline) {
+        try {
+          await dataService.addData('sentences', newSentence)
+        } catch (error) {
+          console.error('同步句子到云端失败:', error)
+        }
+      }
     },
 
-    deleteSentence(id) {
+    async deleteSentence(id) {
       this.sentences = this.sentences.filter(sentence => sentence.id !== id)
       this.saveSentences()
+
+      // 如果在线，从云端删除
+      if (this.isOnline) {
+        try {
+          await dataService.deleteData('sentences', id)
+        } catch (error) {
+          console.error('从云端删除句子失败:', error)
+        }
+      }
     },
 
     saveSentences() {
@@ -94,20 +226,39 @@ export const useDataStore = defineStore('data', {
     },
 
     // 问答管理
-    addQA(qa) {
+    async addQA(qa) {
       const newQA = {
         id: Date.now(),
         question: qa.question,
         answer: qa.answer,
         createdAt: new Date().toISOString()
       }
+      
       this.qa.push(newQA)
       this.saveQA()
+
+      // 如果在线，同步到云端
+      if (this.isOnline) {
+        try {
+          await dataService.addData('qa', newQA)
+        } catch (error) {
+          console.error('同步问答到云端失败:', error)
+        }
+      }
     },
 
-    deleteQA(id) {
+    async deleteQA(id) {
       this.qa = this.qa.filter(qa => qa.id !== id)
       this.saveQA()
+
+      // 如果在线，从云端删除
+      if (this.isOnline) {
+        try {
+          await dataService.deleteData('qa', id)
+        } catch (error) {
+          console.error('从云端删除问答失败:', error)
+        }
+      }
     },
 
     saveQA() {
