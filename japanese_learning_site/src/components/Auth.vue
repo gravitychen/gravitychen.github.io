@@ -7,13 +7,21 @@
       </p>
       
       <div v-if="!isLoggedIn" class="auth-options">
-        <button 
-          @click="signInAnonymously" 
-          class="auth-btn primary"
-          :disabled="loading"
-        >
-          {{ loading ? '登录中...' : '快速登录（推荐）' }}
-        </button>
+        <div v-if="autoLoginInProgress" class="auto-login-status">
+          <div class="loading-spinner"></div>
+          <p>正在自动登录...</p>
+          <small>首次使用需要几秒钟时间</small>
+        </div>
+        
+        <div v-else>
+          <button 
+            @click="signInAnonymously" 
+            class="auth-btn primary"
+            :disabled="loading"
+          >
+            {{ loading ? '登录中...' : '快速登录（推荐）' }}
+          </button>
+        </div>
         
         <div class="auth-note">
           <small>💡 如果快速登录失败，请使用邮箱登录</small>
@@ -66,9 +74,17 @@
         <div v-if="syncInProgress" class="sync-progress">
           正在同步数据...
         </div>
-        <button @click="signOut" class="auth-btn danger">
-          退出登录
-        </button>
+        <div class="sync-controls">
+          <button @click="manualSync" class="auth-btn secondary" :disabled="syncInProgress">
+            {{ syncInProgress ? '同步中...' : '手动同步' }}
+          </button>
+          <button @click="getMigrationInfo" class="auth-btn warning" :disabled="syncInProgress">
+            {{ syncInProgress ? '获取中...' : '数据迁移' }}
+          </button>
+          <button @click="signOut" class="auth-btn danger">
+            退出登录
+          </button>
+        </div>
       </div>
       
       <div v-if="error" class="error-message">
@@ -91,6 +107,7 @@ export default {
     const password = ref('')
     const loading = ref(false)
     const error = ref('')
+    const autoLoginInProgress = ref(false)
 
     const isLoggedIn = computed(() => dataStore.isOnline)
     const lastSyncTime = computed(() => dataStore.lastSyncTime)
@@ -146,6 +163,46 @@ export default {
       }
     }
 
+    const manualSync = async () => {
+      loading.value = true
+      error.value = ''
+      try {
+        await dataStore.manualSync()
+        console.log('手动同步成功')
+      } catch (err) {
+        error.value = `同步失败: ${err.message}`
+        console.error('手动同步失败:', err)
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const getMigrationInfo = async () => {
+      loading.value = true
+      error.value = ''
+      try {
+        const migrationInfo = await dataStore.getMigrationInfo()
+        console.log('迁移信息获取成功:', migrationInfo)
+        
+        // 显示迁移信息
+        const info = `
+当前用户ID: ${migrationInfo.currentUserId}
+当前数据: 单词${migrationInfo.currentData.words}个, 句子${migrationInfo.currentData.sentences}个, 问答${migrationInfo.currentData.qa}个
+
+手动迁移步骤:
+${migrationInfo.instructions.join('\n')}
+
+请按照上述步骤在Firebase控制台手动迁移数据。
+        `
+        error.value = info
+      } catch (err) {
+        error.value = `获取迁移信息失败: ${err.message}`
+        console.error('获取迁移信息失败:', err)
+      } finally {
+        loading.value = false
+      }
+    }
+
     const formatTime = (timeString) => {
       const date = new Date(timeString)
       return date.toLocaleString('zh-CN')
@@ -154,6 +211,22 @@ export default {
     onMounted(() => {
       // 初始化云端同步
       dataStore.initializeCloudSync()
+      
+      // 检查是否需要自动登录
+      if (!isLoggedIn.value) {
+        autoLoginInProgress.value = true
+        
+        // 延迟一点时间显示自动登录状态
+        setTimeout(async () => {
+          try {
+            await authService.autoLogin()
+          } catch (error) {
+            console.error('自动登录失败:', error)
+          } finally {
+            autoLoginInProgress.value = false
+          }
+        }, 500)
+      }
     })
 
     return {
@@ -161,6 +234,7 @@ export default {
       password,
       loading,
       error,
+      autoLoginInProgress,
       isLoggedIn,
       lastSyncTime,
       syncInProgress,
@@ -168,6 +242,8 @@ export default {
       signInWithEmail,
       signUpWithEmail,
       signOut,
+      manualSync,
+      getMigrationInfo,
       formatTime
     }
   }
@@ -353,6 +429,56 @@ export default {
   margin-top: 15px;
   text-align: center;
   font-size: 14px;
+}
+
+.auto-login-status {
+  text-align: center;
+  padding: 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.auto-login-status p {
+  margin: 10px 0;
+  color: #333;
+  font-weight: 500;
+}
+
+.sync-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.sync-controls .auth-btn {
+  flex: 1;
+}
+
+.auth-btn.warning {
+  background: #ff9800;
+  color: white;
+}
+
+.auth-btn.warning:hover {
+  background: #f57c00;
+}
+
+.auto-login-status small {
+  color: #666;
+  font-size: 12px;
 }
 
 @media (max-width: 480px) {

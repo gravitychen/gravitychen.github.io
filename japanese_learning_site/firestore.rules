@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 允许所有已认证用户访问设备数据
+    match /devices/{deviceId}/{collection=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 允许所有已认证用户访问用户数据（向后兼容）
+    match /users/{userId}/{collection=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 允许所有已认证用户访问根级别集合（向后兼容）
+    match /{collection=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

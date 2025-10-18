@@ -8,8 +8,7 @@ import Sentences from './components/Sentences.vue'
 import QA from './components/QA.vue'
 import Review from './components/Review.vue'
 import Quiz from './components/Quiz.vue'
-import SyncTest from './components/SyncTest.vue'
-import AuthDebug from './components/AuthDebug.vue'
+import { useDataStore } from './stores/dataStore.js'
 
 const routes = [
   { path: '/', component: Home },
@@ -17,9 +16,7 @@ const routes = [
   { path: '/sentences', component: Sentences },
   { path: '/qa', component: QA },
   { path: '/review', component: Review },
-  { path: '/quiz', component: Quiz },
-  { path: '/sync-test', component: SyncTest },
-  { path: '/auth-debug', component: AuthDebug }
+  { path: '/quiz', component: Quiz }
 ]
 
 const router = createRouter({
@@ -28,6 +25,16 @@ const router = createRouter({
 })
 
 const app = createApp(App)
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
+
+// 初始化云端同步
+const dataStore = useDataStore()
+dataStore.initializeCloudSync()
+
+// 应用启动后立即尝试自动登录
 app.mount('#app')
+
+// 设备认证会在authService构造函数中自动初始化
+// 不需要额外的登录逻辑

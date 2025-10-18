@@ -22,9 +22,9 @@
         <label>答案：</label>
         <textarea 
           v-model="newQA.answer" 
-          placeholder="请输入答案"
-          class="form-textarea"
-          rows="3"
+          placeholder="请输入答案（支持长文本，会自动换行）"
+          class="form-textarea answer-textarea"
+          rows="4"
         ></textarea>
       </div>
       <div class="form-actions">
@@ -49,11 +49,11 @@
         <div class="qa-content">
           <div class="qa-question">
             <span class="qa-label">Q:</span>
-            {{ qa.question }}
+            <div class="question-content">{{ qa.question }}</div>
           </div>
           <div class="qa-answer">
             <span class="qa-label">A:</span>
-            {{ qa.answer }}
+            <div class="answer-content">{{ qa.answer }}</div>
           </div>
           <div class="qa-date">{{ formatDate(qa.createdAt) }}</div>
         </div>
@@ -195,6 +195,19 @@ export default {
   font-family: inherit;
 }
 
+.answer-textarea {
+  min-height: 120px;
+  line-height: 1.6;
+  background: #f8f9fa;
+  border-left: 3px solid #667eea;
+}
+
+.answer-textarea:focus {
+  border-color: #667eea;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .form-textarea:focus {
   outline: none;
   border-color: #667eea;
@@ -286,13 +299,45 @@ export default {
   font-size: 1.1rem;
   color: #333;
   margin-bottom: 0.8rem;
-  line-height: 1.4;
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.question-content {
+  flex: 1;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  padding: 0.5rem;
+  background: #fff;
+  border-radius: 6px;
+  border-left: 3px solid #28a745;
+  font-weight: 500;
 }
 
 .qa-answer {
   color: #666;
   margin-bottom: 0.5rem;
-  line-height: 1.4;
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.answer-content {
+  flex: 1;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #667eea;
+  font-size: 0.95rem;
 }
 
 .qa-label {
@@ -374,6 +419,23 @@ export default {
   
   .delete-btn {
     align-self: flex-end;
+  }
+  
+  .qa-question,
+  .qa-answer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+  
+  .question-content,
+  .answer-content {
+    margin-left: 0;
+    margin-top: 0.3rem;
+  }
+  
+  .answer-textarea {
+    min-height: 100px;
   }
 }
 </style>

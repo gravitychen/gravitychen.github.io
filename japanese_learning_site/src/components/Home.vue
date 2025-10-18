@@ -120,11 +120,9 @@ export default {
              dataStore.qaToReview.length > 0
     })
 
-    // 页面加载时初始化示例数据
+    // 示例数据现在会在用户登录后自动初始化
     onMounted(() => {
-      if (!dataStore.hasInitialData) {
-        dataStore.initializeSampleData()
-      }
+      // 数据初始化已移至登录后的云端同步流程中
     })
 
     // 导出数据
@@ -142,15 +140,16 @@ export default {
     }
 
     // 导入数据
-    const importDataConfirm = () => {
-      if (dataStore.importData(importData.value)) {
+    const importDataConfirm = async () => {
+      try {
+        await dataStore.importData(importData.value)
         alert('数据导入成功！')
         showImportDialog.value = false
         importData.value = ''
-        // 刷新页面以更新显示
-        window.location.reload()
-      } else {
-        alert('数据导入失败，请检查数据格式！')
+        // 不需要刷新页面，数据会通过实时同步自动更新
+      } catch (error) {
+        alert(`数据导入失败：${error.message}`)
+        console.error('导入失败:', error)
       }
     }
 
