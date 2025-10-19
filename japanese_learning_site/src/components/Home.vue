@@ -1,24 +1,51 @@
 <template>
   <div class="home">
     <div class="welcome-card">
-      <h2>欢迎使用日语学习助手！</h2>
+      <h2>欢迎使用{{ dataStore.currentLanguageName }}学习助手！</h2>
       <p v-if="!dataStore.hasInitialData">正在为你准备示例学习内容...</p>
-      <p v-else>开始你的日语学习之旅吧 🎌</p>
+      <p v-else>开始你的{{ dataStore.currentLanguageName }}学习之旅吧 🎌</p>
     </div>
 
+    <!-- 语言切换快捷链接 -->
+    <div class="language-shortcuts">
+      <h3>🌍 快速切换语言</h3>
+      <div class="language-buttons">
+        <a href="/japanese" class="lang-btn japanese">
+          <span class="lang-flag">🇯🇵</span>
+          <span class="lang-name">日语</span>
+        </a>
+        <a href="/english" class="lang-btn english">
+          <span class="lang-flag">🇺🇸</span>
+          <span class="lang-name">英语</span>
+        </a>
+        <a href="/korean" class="lang-btn korean">
+          <span class="lang-flag">🇰🇷</span>
+          <span class="lang-name">韩语</span>
+        </a>
+        <a href="/hindi" class="lang-btn hindi">
+          <span class="lang-flag">🇮🇳</span>
+          <span class="lang-name">印地语</span>
+        </a>
+      </div>
+    </div>
+
+
     <div class="stats-grid">
-      <div class="stat-card">
+      <router-link to="/words" class="stat-card clickable">
         <div class="stat-number">{{ dataStore.totalWords }}</div>
         <div class="stat-label">单词</div>
-      </div>
-      <div class="stat-card">
+        <div class="stat-hint">点击管理单词</div>
+      </router-link>
+      <router-link to="/sentences" class="stat-card clickable">
         <div class="stat-number">{{ dataStore.totalSentences }}</div>
         <div class="stat-label">句子</div>
-      </div>
-      <div class="stat-card">
+        <div class="stat-hint">点击管理句子</div>
+      </router-link>
+      <router-link to="/qa" class="stat-card clickable">
         <div class="stat-number">{{ dataStore.totalQA }}</div>
         <div class="stat-label">问答</div>
-      </div>
+        <div class="stat-hint">点击管理问答</div>
+      </router-link>
     </div>
 
     <div class="review-section">
@@ -76,6 +103,10 @@
         <button @click="showImportDialog = true" class="data-btn import-btn">
           <span class="btn-icon">📥</span>
           <span class="btn-text">导入数据</span>
+        </button>
+        <button @click="testImport" class="data-btn test-btn">
+          <span class="btn-icon">🧪</span>
+          <span class="btn-text">测试导入</span>
         </button>
       </div>
       
@@ -153,13 +184,48 @@ export default {
       }
     }
 
+    // 测试导入功能
+    const testImport = async () => {
+      try {
+        // 创建一个测试数据
+        const testData = {
+          words: [
+            {
+              japanese: "テスト",
+              chinese: "测试"
+            }
+          ],
+          sentences: [
+            {
+              japanese: "これはテストです",
+              chinese: "这是测试",
+              context: "测试用"
+            }
+          ],
+          qa: [
+            {
+              question: "テストは何ですか？",
+              answer: "テストは試験のことです"
+            }
+          ]
+        }
+        
+        await dataStore.importData(JSON.stringify(testData))
+        alert('测试数据导入成功！')
+      } catch (error) {
+        alert(`测试导入失败：${error.message}`)
+        console.error('测试导入失败:', error)
+      }
+    }
+
     return {
       dataStore,
       hasItemsToReview,
       showImportDialog,
       importData,
       exportData,
-      importDataConfirm
+      importDataConfirm,
+      testImport
     }
   }
 }
@@ -199,6 +265,24 @@ export default {
   border-radius: 12px;
   text-align: center;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+}
+
+.stat-card.clickable {
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.stat-card.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+}
+
+.stat-card.clickable:hover .stat-number {
+  color: #5a67d8;
 }
 
 .stat-number {
@@ -206,11 +290,24 @@ export default {
   font-weight: bold;
   color: #667eea;
   margin-bottom: 0.5rem;
+  transition: color 0.3s ease;
 }
 
 .stat-label {
   color: #666;
   font-size: 0.9rem;
+  margin-bottom: 0.3rem;
+}
+
+.stat-hint {
+  color: #999;
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-card.clickable:hover .stat-hint {
+  opacity: 1;
 }
 
 .review-section {
@@ -368,6 +465,16 @@ export default {
   transform: translateY(-2px);
 }
 
+.test-btn {
+  background: #6f42c1;
+  color: white;
+}
+
+.test-btn:hover {
+  background: #5a32a3;
+  transform: translateY(-2px);
+}
+
 .import-dialog {
   position: fixed;
   top: 0;
@@ -482,6 +589,96 @@ export default {
   
   .dialog-actions {
     flex-direction: column;
+  }
+}
+
+/* 语言切换快捷链接样式 */
+.language-shortcuts {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.language-shortcuts h3 {
+  margin-bottom: 1rem;
+  color: #333;
+  text-align: center;
+}
+
+.language-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #333;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.lang-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.lang-btn.japanese {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+  color: white;
+}
+
+.lang-btn.english {
+  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+  color: white;
+}
+
+.lang-btn.korean {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.lang-btn.hindi {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.lang-btn:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lang-flag {
+  font-size: 1.5rem;
+}
+
+.lang-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* 移动端语言按钮优化 */
+@media (max-width: 480px) {
+  .language-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .lang-btn {
+    padding: 0.8rem;
+  }
+  
+  .lang-flag {
+    font-size: 1.2rem;
+  }
+  
+  .lang-name {
+    font-size: 0.9rem;
   }
 }
 </style>

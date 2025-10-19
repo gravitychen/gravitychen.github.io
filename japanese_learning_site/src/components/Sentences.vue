@@ -1,7 +1,7 @@
 <template>
   <div class="sentences">
     <div class="header">
-      <h2>💬 内在感觉--句子向</h2>
+      <h2>💬 {{ dataStore.currentLanguageName }}内在感觉--句子向</h2>
       <button @click="showAddForm = !showAddForm" class="add-btn">
         {{ showAddForm ? '取消' : '添加句子' }}
       </button>
@@ -10,10 +10,10 @@
     <!-- 添加句子表单 -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-group">
-        <label>日语句子：</label>
+        <label>{{ dataStore.currentLanguageName }}句子：</label>
         <textarea 
           v-model="newSentence.japanese" 
-          placeholder="请输入日语句子"
+          :placeholder="`请输入${dataStore.currentLanguageName}句子`"
           class="form-textarea"
           rows="3"
         ></textarea>
@@ -127,9 +127,33 @@ export default {
       }
     }
 
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('zh-CN')
+    const formatDate = (dateInput) => {
+      if (!dateInput) return '未知时间'
+      
+      try {
+        let date
+        
+        // 处理Firebase Timestamp对象
+        if (dateInput && typeof dateInput === 'object' && dateInput.seconds) {
+          date = new Date(dateInput.seconds * 1000)
+        } else if (typeof dateInput === 'string') {
+          date = new Date(dateInput)
+        } else if (dateInput instanceof Date) {
+          date = dateInput
+        } else {
+          return '未知时间'
+        }
+        
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+          return '未知时间'
+        }
+        
+        return date.toLocaleDateString('zh-CN')
+      } catch (error) {
+        console.error('日期格式化错误:', error, dateInput)
+        return '未知时间'
+      }
     }
 
     return {

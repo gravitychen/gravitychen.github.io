@@ -1,8 +1,8 @@
 <template>
   <div class="quiz">
     <div class="header">
-      <h2>🎯 日语考试</h2>
-      <p>测试你的日语学习成果</p>
+      <h2>🎯 {{ dataStore.currentLanguageName }}考试</h2>
+      <p>测试你的{{ dataStore.currentLanguageName }}学习成果</p>
     </div>
 
     <!-- 考试设置 -->

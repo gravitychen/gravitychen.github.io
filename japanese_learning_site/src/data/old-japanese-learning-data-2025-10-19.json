@@ -1,0 +1,414 @@
+      
+{
+  "words": [
+    {
+      "id": "IAssC9RLPhbhOb8fN0zn",
+      "chinese": "果冻",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760848670,
+        "nanoseconds": 972000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760848670,
+        "nanoseconds": 972000000
+      },
+      "japanese": "ゼリー"
+    },
+    {
+      "id": "bUqKGzMpQQ38CiU7thQ8",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760844042,
+        "nanoseconds": 630000000
+      },
+      "chinese": "香肠",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760844042,
+        "nanoseconds": 630000000
+      },
+      "japanese": "ソーセージ"
+    },
+    {
+      "id": "yRBj7zzOdvaZS4CelTs8",
+      "chinese": "半熟蛋",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760844028,
+        "nanoseconds": 358000000
+      },
+      "japanese": "半熟玉子　はんじゅく   ご",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760844028,
+        "nanoseconds": 358000000
+      }
+    },
+    {
+      "id": "ZNrR9eZKwjint6jNeBm6",
+      "japanese": "使役動詞　　　しえき",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760841986,
+        "nanoseconds": 324000000
+      },
+      "chinese": "使役动词",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760841986,
+        "nanoseconds": 324000000
+      }
+    },
+    {
+      "id": "gjCQklrspIC0VEYPV0kt",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760828802,
+        "nanoseconds": 340000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760828802,
+        "nanoseconds": 340000000
+      },
+      "chinese": "上下関係级",
+      "japanese": "上下関係        げ"
+    },
+    {
+      "id": "c5jRboXbY5Ite6FZOjfu",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 295000000
+      },
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 295000000
+      },
+      "chinese": "膝盖",
+      "japanese": "膝　ひざ"
+    },
+    {
+      "id": "9RERtzPeD0aFldo1kJ1G",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 253000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 253000000
+      },
+      "chinese": "大腿🦵",
+      "japanese": "太もも　ふと"
+    },
+    {
+      "id": "ASQwrYm3ymaZfYLPZq2P",
+      "japanese": "靴　　くつ",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 211000000
+      },
+      "chinese": "👞",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 211000000
+      }
+    },
+    {
+      "id": "v6TY7GZPVsSdjJBuA8jq",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 171000000
+      },
+      "chinese": "平手",
+      "japanese": "引き分け　　ひ　わ",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 171000000
+      }
+    },
+    {
+      "id": "nRZPY8Y7pvjwuc8POfHE",
+      "chinese": "赔不起",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 120000000
+      },
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 120000000
+      },
+      "japanese": "弁償できない　　べんしょう"
+    },
+    {
+      "id": "q5DJF7t6baWRN7RYFnTs",
+      "chinese": "前天",
+      "japanese": "一昨日　　　おととい",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 81000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 81000000
+      }
+    },
+    {
+      "id": "AnrbRMimW31572u8yM3Q",
+      "chinese": "後天",
+      "japanese": "明後日　　　あさって",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 38000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 38000000
+      }
+    },
+    {
+      "id": "4UkMEjhgST8jnfOF5WpE",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768779,
+        "nanoseconds": 996000000
+      },
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768779,
+        "nanoseconds": 996000000
+      },
+      "chinese": "三天前",
+      "japanese": "三日前　　みっかまえ"
+    },
+    {
+      "id": "fSfGdCShUFoSomt88DxI",
+      "japanese": "二日後　　ふつかご",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768779,
+        "nanoseconds": 953000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768779,
+        "nanoseconds": 953000000
+      },
+      "chinese": "两天后"
+    }
+  ],
+  "sentences": [
+    {
+      "id": "unvnf5ecUhueW1lFKHl1",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760842189,
+        "nanoseconds": 256000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760842189,
+        "nanoseconds": 256000000
+      },
+      "japanese": "何か手伝いましょうか",
+      "chinese": "有什么需要帮忙的吗",
+      "context": "别人需要帮助时"
+    },
+    {
+      "id": "RPsWBB5tm0tDSnmgxxY1",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760779977,
+        "nanoseconds": 473000000
+      },
+      "japanese": "AとBは 何が 違うんですか？",
+      "context": "询问差异",
+      "chinese": "A和B有什么不同吗？",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760779977,
+        "nanoseconds": 473000000
+      }
+    },
+    {
+      "id": "tV3rViGrZKcrgydNezxL",
+      "japanese": "これは 私が 自分で 作った ウェブサイトです",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 609000000
+      },
+      "chinese": "这是我自己的做的网站",
+      "context": "介绍这个网站时用",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 609000000
+      }
+    },
+    {
+      "id": "G9BZhCMeJqRInaFnZ0rv",
+      "japanese": "彼を擽る　くすぐ",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 570000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 570000000
+      },
+      "context": "掰手腕时。  腕相撲　うでずもう",
+      "chinese": "给他挠痒痒"
+    },
+    {
+      "id": "KoqVX3WF7fAxhHE6ZKfl",
+      "japanese": "ああこれ、これ知っています",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 529000000
+      },
+      "chinese": "啊啊这个，这个我知道",
+      "context": "",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 529000000
+      }
+    },
+    {
+      "id": "oIeoRMNavGg7UzmVhIE3",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 484000000
+      },
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 484000000
+      },
+      "context": "佐藤跟我对话时，我夸了她她回应我",
+      "chinese": "也没有到那种程度啦～",
+      "japanese": "それほどでもないけどね"
+    },
+    {
+      "id": "hD59cbk7PvgcxIX45JsP",
+      "japanese": "誰もあなたに聞いていないよ",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 428000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769146,
+        "nanoseconds": 428000000
+      },
+      "chinese": "没人问你",
+      "context": "zhenyu回答别人问题"
+    },
+    {
+      "id": "9iK2nJEoxuhld4Tx49vz",
+      "japanese": "いつ締め切りですか",
+      "chinese": "什么时候截止",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 430000000
+      },
+      "context": "",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 430000000
+      }
+    },
+    {
+      "id": "ciWhra7tbrIJeUML6e4C",
+      "japanese": "今日の自分を使い切りたい、そうしないと自分に申し訳ない",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 388000000
+      },
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 388000000
+      },
+      "context": "表达想变得intense的时候",
+      "chinese": "想把今天的自己消耗完，要不然觉得对不起自己"
+    },
+    {
+      "id": "7LmueZSkakY3SGWjvNfm",
+      "chinese": "我写汉字的时候也经常犯错",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 347000000
+      },
+      "japanese": "私は漢字を書く時もよく間違えます",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760768780,
+        "nanoseconds": 347000000
+      },
+      "context": "写汉字想不起来时"
+    }
+  ],
+  "qa": [
+    {
+      "id": "1gFA5byKEunc0daYyeZD",
+      "answer": "•\t「に」用于表示“让某人自己去做某事”，动作的执行者是那个人自己。\n👉 先生は私にデータを作らせた。\n意思：老师让我去做数据（我亲自做）。\n\n•\t「を」用于表示“让某人被动地参与某行为”，强调被控制、被派遣的感觉。\n👉 先生は私を教室に行かせた。\n意思：老师把我派去教室（命令感更强）。\n\n结论:\n在“制作数据”这种场景下，动作是由“我”亲自完成的，所以只能用「に」，不能用「を」。\n✅ 正确句：先生は私にデータを早めに作らせました。",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760842655,
+        "nanoseconds": 18000000
+      },
+      "question": "「先生は私に(を)データを早めに作らせました」中，「に」和「を」有什么区别？",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760842655,
+        "nanoseconds": 18000000
+      }
+    },
+    {
+      "id": "EG2Nn3Ewg4fKAd3vjBPq",
+      "answer": "1.お飲み物は先にお持ちしてもよろしいですか？\n👉「飲料要先上嗎？」\n\n2.ドリンクはお食事と一緒で大丈夫ですか？\n👉「飲料和餐點一起可以嗎？」（比較口語）\n\n3.ドリンクはどうされますか？ 一緒にお出(だ)ししますか？\n👉「飲料您要怎麼上呢？要一起上嗎？」",
+      "createdAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769784,
+        "nanoseconds": 370000000
+      },
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1760769784,
+        "nanoseconds": 370000000
+      },
+      "question": "我在餐廳點餐時， 店員問我飲料要和餐點一起上 類似的對話，幫我模擬一下他們會怎麼說？"
+    }
+  ],
+  "reviewProgress": {},
+  "quizHistory": [],
+  "exportDate": "2025-10-19T06:56:31.846Z"
+}
+
+    

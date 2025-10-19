@@ -1,7 +1,7 @@
 <template>
   <div class="qa">
     <div class="header">
-      <h2>❓ 问答管理</h2>
+      <h2>❓ {{ dataStore.currentLanguageName }}问答管理</h2>
       <button @click="showAddForm = !showAddForm" class="add-btn">
         {{ showAddForm ? '取消' : '添加问答' }}
       </button>
@@ -113,9 +113,33 @@ export default {
       }
     }
 
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('zh-CN')
+    const formatDate = (dateInput) => {
+      if (!dateInput) return '未知时间'
+      
+      try {
+        let date
+        
+        // 处理Firebase Timestamp对象
+        if (dateInput && typeof dateInput === 'object' && dateInput.seconds) {
+          date = new Date(dateInput.seconds * 1000)
+        } else if (typeof dateInput === 'string') {
+          date = new Date(dateInput)
+        } else if (dateInput instanceof Date) {
+          date = dateInput
+        } else {
+          return '未知时间'
+        }
+        
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+          return '未知时间'
+        }
+        
+        return date.toLocaleDateString('zh-CN')
+      } catch (error) {
+        console.error('日期格式化错误:', error, dateInput)
+        return '未知时间'
+      }
     }
 
     return {

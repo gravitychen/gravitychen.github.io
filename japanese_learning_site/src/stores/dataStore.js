@@ -18,7 +18,15 @@ export const useDataStore = defineStore('data', {
     isOnline: false,
     syncInProgress: false,
     lastSyncTime: null,
-    syncRetryCount: 0
+    syncRetryCount: 0,
+    // 新增多语言支持
+    currentLanguage: 'ja', // 当前学习语言：ja(日语), en(英语), hi(印地语), ko(韩语)
+    supportedLanguages: [
+      { code: 'ja', name: '日语', flag: '🇯🇵' },
+      { code: 'en', name: '英语', flag: '🇺🇸' },
+      { code: 'hi', name: '印地语', flag: '🇮🇳' },
+      { code: 'ko', name: '韩语', flag: '🇰🇷' }
+    ]
   }),
 
   getters: {
@@ -58,6 +66,17 @@ export const useDataStore = defineStore('data', {
         const lastReview = state.reviewProgress[`qa_${qa.id}`]
         return !lastReview || (now - lastReview) >= oneDayMs
       })
+    },
+    
+    // 获取当前语言信息
+    currentLanguageInfo: (state) => {
+      return state.supportedLanguages.find(lang => lang.code === state.currentLanguage)
+    },
+    
+    // 获取当前语言的显示名称
+    currentLanguageName: (state) => {
+      const lang = state.supportedLanguages.find(lang => lang.code === state.currentLanguage)
+      return lang ? lang.name : '未知语言'
     },
     
   },
@@ -160,19 +179,19 @@ export const useDataStore = defineStore('data', {
       dataService.listenToData('words', (words) => {
         console.log('单词数据更新:', words.length, '个')
         this.words = words || []
-      })
+      }, this.currentLanguage)
 
       // 监听句子变化
       dataService.listenToData('sentences', (sentences) => {
         console.log('句子数据更新:', sentences.length, '个')
         this.sentences = sentences || []
-      })
+      }, this.currentLanguage)
 
       // 监听问答变化
       dataService.listenToData('qa', (qa) => {
         console.log('问答数据更新:', qa.length, '个')
         this.qa = qa || []
-      })
+      }, this.currentLanguage)
 
       console.log('实时同步监听已设置')
     },
@@ -191,9 +210,9 @@ export const useDataStore = defineStore('data', {
         
         // 使用 Promise.allSettled 确保部分失败不影响其他数据
         const results = await Promise.allSettled([
-          dataService.getAllData('words'),
-          dataService.getAllData('sentences'),
-          dataService.getAllData('qa')
+          dataService.getAllData('words', this.currentLanguage),
+          dataService.getAllData('sentences', this.currentLanguage),
+          dataService.getAllData('qa', this.currentLanguage)
         ])
 
         const [wordsResult, sentencesResult, qaResult] = results
@@ -250,9 +269,9 @@ export const useDataStore = defineStore('data', {
         
         // 上传所有数据到云端
         await Promise.all([
-          dataService.importData('words', this.words),
-          dataService.importData('sentences', this.sentences),
-          dataService.importData('qa', this.qa)
+          dataService.importData('words', this.words, this.currentLanguage),
+          dataService.importData('sentences', this.sentences, this.currentLanguage),
+          dataService.importData('qa', this.qa, this.currentLanguage)
         ])
 
         this.lastSyncTime = new Date().toISOString()
@@ -281,7 +300,7 @@ export const useDataStore = defineStore('data', {
       
       try {
         console.log('添加单词到云端:', newWord)
-        const cloudWord = await dataService.addData('words', newWord)
+        const cloudWord = await dataService.addData('words', newWord, this.currentLanguage)
         console.log('单词添加成功:', cloudWord)
         // 数据会通过实时监听自动更新，不需要手动添加到本地
         return cloudWord
@@ -298,7 +317,7 @@ export const useDataStore = defineStore('data', {
 
       try {
         console.log('从云端删除单词:', id)
-        await dataService.deleteData('words', id)
+        await dataService.deleteData('words', id, this.currentLanguage)
         console.log('单词删除成功')
         // 数据会通过实时监听自动更新
       } catch (error) {
@@ -327,7 +346,7 @@ export const useDataStore = defineStore('data', {
       
       try {
         console.log('添加句子到云端:', newSentence)
-        const cloudSentence = await dataService.addData('sentences', newSentence)
+        const cloudSentence = await dataService.addData('sentences', newSentence, this.currentLanguage)
         console.log('句子添加成功:', cloudSentence)
         // 数据会通过实时监听自动更新
         return cloudSentence
@@ -344,7 +363,7 @@ export const useDataStore = defineStore('data', {
 
       try {
         console.log('从云端删除句子:', id)
-        await dataService.deleteData('sentences', id)
+        await dataService.deleteData('sentences', id, this.currentLanguage)
         console.log('句子删除成功')
         // 数据会通过实时监听自动更新
       } catch (error) {
@@ -372,7 +391,7 @@ export const useDataStore = defineStore('data', {
       
       try {
         console.log('添加问答到云端:', newQA)
-        const cloudQA = await dataService.addData('qa', newQA)
+        const cloudQA = await dataService.addData('qa', newQA, this.currentLanguage)
         console.log('问答添加成功:', cloudQA)
         // 数据会通过实时监听自动更新
         return cloudQA
@@ -389,7 +408,7 @@ export const useDataStore = defineStore('data', {
 
       try {
         console.log('从云端删除问答:', id)
-        await dataService.deleteData('qa', id)
+        await dataService.deleteData('qa', id, this.currentLanguage)
         console.log('问答删除成功')
         // 数据会通过实时监听自动更新
       } catch (error) {
@@ -429,26 +448,33 @@ export const useDataStore = defineStore('data', {
       console.log('开始初始化默认数据...')
 
       try {
+        // 获取当前语言的默认数据
+        const languageData = defaultData[this.currentLanguage]
+        if (!languageData) {
+          console.log('当前语言没有默认数据:', this.currentLanguage)
+          return
+        }
+
         // 添加默认单词
-        if (defaultData.words && defaultData.words.length > 0) {
-          console.log('导入默认单词:', defaultData.words.length, '个')
-          for (const word of defaultData.words) {
+        if (languageData.words && languageData.words.length > 0) {
+          console.log('导入默认单词:', languageData.words.length, '个')
+          for (const word of languageData.words) {
             await this.addWord(word)
           }
         }
 
         // 添加默认句子
-        if (defaultData.sentences && defaultData.sentences.length > 0) {
-          console.log('导入默认句子:', defaultData.sentences.length, '个')
-          for (const sentence of defaultData.sentences) {
+        if (languageData.sentences && languageData.sentences.length > 0) {
+          console.log('导入默认句子:', languageData.sentences.length, '个')
+          for (const sentence of languageData.sentences) {
             await this.addSentence(sentence)
           }
         }
 
         // 添加默认问答
-        if (defaultData.qa && defaultData.qa.length > 0) {
-          console.log('导入默认问答:', defaultData.qa.length, '个')
-          for (const qa of defaultData.qa) {
+        if (languageData.qa && languageData.qa.length > 0) {
+          console.log('导入默认问答:', languageData.qa.length, '个')
+          for (const qa of languageData.qa) {
             await this.addQA(qa)
           }
         }
@@ -459,10 +485,42 @@ export const useDataStore = defineStore('data', {
       }
     },
 
-    // 切换显示语言
+    // 切换显示语言（保持原有功能）
     toggleLanguage() {
       this.showJapanese = !this.showJapanese
       // 语言设置通过云端同步
+    },
+
+    // 切换学习语言
+    switchLanguage(languageCode) {
+      if (this.supportedLanguages.some(lang => lang.code === languageCode)) {
+        this.currentLanguage = languageCode
+        console.log('切换学习语言到:', languageCode)
+        // 停止当前监听
+        dataService.stopAllListeners()
+        // 重新加载当前语言的数据
+        this.loadLanguageData()
+      } else {
+        console.error('不支持的语言代码:', languageCode)
+      }
+    },
+
+    // 加载当前语言的数据
+    async loadLanguageData() {
+      if (!this.isOnline) {
+        console.log('未连接到云端，跳过数据加载')
+        return
+      }
+
+      try {
+        console.log('加载语言数据:', this.currentLanguage)
+        // 重新设置实时监听
+        this.setupRealtimeSync()
+        // 从云端同步数据
+        await this.syncFromCloud()
+      } catch (error) {
+        console.error('加载语言数据失败:', error)
+      }
     },
 
     // 手动同步数据（用于解决手机端同步问题）
@@ -560,6 +618,12 @@ export const useDataStore = defineStore('data', {
         }
         
         console.log('开始导入数据到云端...')
+        console.log('当前语言:', this.currentLanguage)
+        console.log('数据统计:', {
+          words: data.words?.length || 0,
+          sentences: data.sentences?.length || 0,
+          qa: data.qa?.length || 0
+        })
         
         // 处理时间戳格式转换
         const processTimestamps = (items) => {
@@ -593,7 +657,7 @@ export const useDataStore = defineStore('data', {
                 await dataService.addData('words', {
                   japanese: word.japanese,
                   chinese: word.chinese
-                })
+                }, this.currentLanguage)
                 console.log('单词导入成功:', word.japanese)
               } else {
                 console.log('跳过重复单词:', word.japanese)
@@ -618,7 +682,7 @@ export const useDataStore = defineStore('data', {
                   japanese: sentence.japanese,
                   chinese: sentence.chinese,
                   context: sentence.context || ''
-                })
+                }, this.currentLanguage)
                 console.log('句子导入成功:', sentence.japanese)
               } else {
                 console.log('跳过重复句子:', sentence.japanese)
@@ -642,7 +706,7 @@ export const useDataStore = defineStore('data', {
                 await dataService.addData('qa', {
                   question: qa.question,
                   answer: qa.answer
-                })
+                }, this.currentLanguage)
                 console.log('问答导入成功:', qa.question)
               } else {
                 console.log('跳过重复问答:', qa.question)
@@ -664,6 +728,12 @@ export const useDataStore = defineStore('data', {
         }
         
         console.log('数据导入完成')
+        console.log('导入统计:', {
+          words: data.words?.length || 0,
+          sentences: data.sentences?.length || 0,
+          qa: data.qa?.length || 0,
+          language: this.currentLanguage
+        })
         return true
       } catch (error) {
         console.error('导入数据失败:', error)

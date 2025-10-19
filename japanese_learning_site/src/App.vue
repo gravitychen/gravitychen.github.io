@@ -6,10 +6,6 @@
         <div v-else>
           <h1>为了别人，学内在映射表达 log in</h1>
           <div class="user-id-display">
-            <div class="user-info">
-              <span class="user-label">用户ID:</span>
-              <span class="user-id">[{{ currentUserId }}]</span>
-            </div>
             <div class="device-info">
               <span class="device-label">设备ID:</span>
               <span class="device-id">[{{ deviceId }}]</span>
@@ -32,9 +28,18 @@
         
         <!-- 控制按钮组 -->
         <div class="button-group">
+          <!-- 学习语言选择器 -->
+          <div class="language-selector">
+            <select v-model="dataStore.currentLanguage" @change="switchLanguage" class="language-select" :disabled="dataStore.syncInProgress" title="选择学习语言">
+              <option v-for="lang in dataStore.supportedLanguages" :key="lang.code" :value="lang.code">
+                {{ lang.flag }} {{ lang.name }}
+              </option>
+            </select>
+          </div>
+          
           <!-- 语言切换按钮 -->
-          <button @click="toggleLanguage" class="nav-button language-btn" :disabled="dataStore.syncInProgress" title="切换语言">
-            {{ dataStore.showJapanese ? '🇯🇵' : '🇨🇳' }}
+          <button @click="toggleLanguage" class="nav-button language-btn" :disabled="dataStore.syncInProgress" title="切换显示语言">
+            ↔️
           </button>
           
           <!-- 检测重复数据按钮 -->
@@ -144,6 +149,13 @@ export default {
     const toggleLanguage = () => {
       if (!dataStore.syncInProgress) {
         dataStore.toggleLanguage()
+      }
+    }
+
+    // 切换学习语言
+    const switchLanguage = () => {
+      if (!dataStore.syncInProgress) {
+        dataStore.switchLanguage(dataStore.currentLanguage)
       }
     }
 
@@ -290,6 +302,7 @@ export default {
       deviceId,
       isUserLoggedIn,
       toggleLanguage,
+      switchLanguage,
       checkDuplicates,
       formatSyncTime
     }
@@ -329,6 +342,39 @@ export default {
   padding: 0.25rem;
   border-radius: 12px;
   backdrop-filter: blur(10px);
+}
+
+.language-selector {
+  display: flex;
+  align-items: center;
+}
+
+.language-select {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  min-width: 120px;
+}
+
+.language-select:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.language-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.language-select option {
+  background: #333;
+  color: white;
 }
 
 .sync-status {
@@ -540,27 +586,113 @@ export default {
 }
 
 /* 移动端优化 */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .nav-brand {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .nav-brand h1 {
+    font-size: 1.2rem;
+  }
+  
+  .nav-controls {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .button-group {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3rem;
+  }
+  
+  .language-selector {
+    order: 1;
+    width: 100%;
+    max-width: 200px;
+  }
+  
+  .language-select {
+    width: 100%;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.5rem;
+  }
+  
+  .nav-button {
+    min-width: 35px;
+    height: 35px;
+    font-size: 1rem;
+    padding: 0.3rem;
+  }
+  
+  .sync-status {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    order: 2;
+    width: 100%;
+    justify-content: center;
+  }
+  
   .main-content {
+    padding: 0.8rem;
+    padding-bottom: 100px;
+  }
+  
+  .user-id-display {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
     padding: 0.8rem;
   }
   
   .nav-brand h1 {
-    font-size: 1.3rem;
+    font-size: 1rem;
   }
   
   .nav-controls {
-    gap: 5px;
+    gap: 0.3rem;
+  }
+  
+  .button-group {
+    gap: 0.2rem;
+  }
+  
+  .nav-button {
+    min-width: 30px;
+    height: 30px;
+    font-size: 0.9rem;
+    padding: 0.2rem;
+  }
+  
+  .language-select {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
   }
   
   .sync-status {
-    font-size: 0.8rem;
-    padding: 3px 8px;
+    font-size: 0.6rem;
+    padding: 1px 4px;
   }
   
-  .auth-button {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
+  .user-id-display {
+    font-size: 0.6rem;
+  }
+  
+  .user-id, .device-id {
+    font-size: 0.6rem;
+    padding: 1px 4px;
   }
 }
 </style>
