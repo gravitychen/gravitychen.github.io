@@ -89,6 +89,9 @@
           <div class="qa-date">{{ formatDate(qa.createdAt) }}</div>
         </div>
         <div class="qa-actions">
+          <button @click="playAudio(qa)" class="speech-btn" :disabled="isPlaying">
+            {{ isPlaying ? '🔊' : '🔊' }}
+          </button>
           <button @click="editQA(qa)" class="edit-btn">
             ✏️
           </button>
@@ -128,6 +131,7 @@ export default {
       question: '',
       answer: ''
     })
+    const isPlaying = ref(false)
 
     const canSave = computed(() => {
       return newQA.value.question.trim() && newQA.value.answer.trim()
@@ -183,6 +187,56 @@ export default {
       editingQA.value = { id: '', question: '', answer: '' }
     }
 
+    const playAudio = async (qa) => {
+      if (isPlaying.value) return
+      
+      try {
+        isPlaying.value = true
+        
+        // 播放问题和答案
+        const textToSpeak = `${qa.question} ${qa.answer}`
+        
+        if (!textToSpeak.trim()) {
+          alert('没有可播放的内容')
+          return
+        }
+
+        // 使用Web Speech API
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(textToSpeak)
+          
+          // 根据当前学习语言设置语音
+          const languageCode = dataStore.currentLanguage
+          utterance.lang = languageCode === 'ja' ? 'ja-JP' : 
+                          languageCode === 'en' ? 'en-US' : 
+                          languageCode === 'ko' ? 'ko-KR' : 
+                          languageCode === 'hi' ? 'hi-IN' : 'zh-CN'
+          
+          utterance.rate = 0.7
+          utterance.pitch = 1
+          utterance.volume = 1
+          
+          utterance.onend = () => {
+            isPlaying.value = false
+          }
+          
+          utterance.onerror = () => {
+            isPlaying.value = false
+            alert('语音播放失败，请检查浏览器设置')
+          }
+          
+          speechSynthesis.speak(utterance)
+        } else {
+          alert('您的浏览器不支持语音播放功能')
+          isPlaying.value = false
+        }
+      } catch (error) {
+        console.error('语音播放错误:', error)
+        isPlaying.value = false
+        alert('语音播放失败')
+      }
+    }
+
     const deleteQA = (id) => {
       if (confirm('确定要删除这个问答吗？')) {
         dataStore.deleteQA(id)
@@ -224,6 +278,7 @@ export default {
       showEditForm,
       newQA,
       editingQA,
+      isPlaying,
       canSave,
       canSaveEdit,
       addQA,
@@ -231,6 +286,7 @@ export default {
       editQA,
       saveEdit,
       cancelEdit,
+      playAudio,
       deleteQA,
       formatDate
     }
@@ -468,6 +524,26 @@ export default {
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.speech-btn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.speech-btn:hover:not(:disabled) {
+  background: #138496;
+}
+
+.speech-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
 }
 
 .edit-btn {

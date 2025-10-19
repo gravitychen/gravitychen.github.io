@@ -110,6 +110,9 @@
           <div class="sentence-date">{{ formatDate(sentence.createdAt) }}</div>
         </div>
         <div class="sentence-actions">
+          <button @click="playAudio(sentence)" class="speech-btn" :disabled="isPlaying">
+            {{ isPlaying ? '🔊' : '🔊' }}
+          </button>
           <button @click="editSentence(sentence)" class="edit-btn">
             ✏️
           </button>
@@ -151,6 +154,7 @@ export default {
       chinese: '',
       context: ''
     })
+    const isPlaying = ref(false)
 
     const canSave = computed(() => {
       return newSentence.value.japanese.trim() && newSentence.value.chinese.trim()
@@ -209,6 +213,56 @@ export default {
       editingSentence.value = { id: '', japanese: '', chinese: '', context: '' }
     }
 
+    const playAudio = async (sentence) => {
+      if (isPlaying.value) return
+      
+      try {
+        isPlaying.value = true
+        
+        // 获取要播放的文本（根据当前显示的语言）
+        const textToSpeak = dataStore.showJapanese ? sentence.japanese : sentence.chinese
+        
+        if (!textToSpeak.trim()) {
+          alert('没有可播放的内容')
+          return
+        }
+
+        // 使用Web Speech API
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(textToSpeak)
+          
+          // 根据当前学习语言设置语音
+          const languageCode = dataStore.currentLanguage
+          utterance.lang = languageCode === 'ja' ? 'ja-JP' : 
+                          languageCode === 'en' ? 'en-US' : 
+                          languageCode === 'ko' ? 'ko-KR' : 
+                          languageCode === 'hi' ? 'hi-IN' : 'zh-CN'
+          
+          utterance.rate = 0.7
+          utterance.pitch = 1
+          utterance.volume = 1
+          
+          utterance.onend = () => {
+            isPlaying.value = false
+          }
+          
+          utterance.onerror = () => {
+            isPlaying.value = false
+            alert('语音播放失败，请检查浏览器设置')
+          }
+          
+          speechSynthesis.speak(utterance)
+        } else {
+          alert('您的浏览器不支持语音播放功能')
+          isPlaying.value = false
+        }
+      } catch (error) {
+        console.error('语音播放错误:', error)
+        isPlaying.value = false
+        alert('语音播放失败')
+      }
+    }
+
     const deleteSentence = (id) => {
       if (confirm('确定要删除这个句子吗？')) {
         dataStore.deleteSentence(id)
@@ -250,6 +304,7 @@ export default {
       showEditForm,
       newSentence,
       editingSentence,
+      isPlaying,
       canSave,
       canSaveEdit,
       addSentence,
@@ -257,6 +312,7 @@ export default {
       editSentence,
       saveEdit,
       cancelEdit,
+      playAudio,
       deleteSentence,
       formatDate
     }
@@ -462,6 +518,26 @@ export default {
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.speech-btn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.speech-btn:hover:not(:disabled) {
+  background: #138496;
+}
+
+.speech-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
 }
 
 .edit-btn {
