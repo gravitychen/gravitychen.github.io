@@ -7,6 +7,46 @@
       </button>
     </div>
 
+    <!-- 编辑句子表单 -->
+    <div v-if="showEditForm" class="edit-form">
+      <h3>编辑句子</h3>
+      <div class="form-group">
+        <label>{{ dataStore.currentLanguageName }}句子：</label>
+        <textarea 
+          v-model="editingSentence.japanese" 
+          :placeholder="`请输入${dataStore.currentLanguageName}句子`"
+          class="form-textarea"
+          rows="3"
+        ></textarea>
+      </div>
+      <div class="form-group">
+        <label>对应内在感觉：</label>
+        <textarea 
+          v-model="editingSentence.chinese" 
+          placeholder="请输入对应的中文翻译 or 内在感觉描述"
+          class="form-textarea"
+          rows="3"
+        ></textarea>
+      </div>
+      <div class="form-group">
+        <label>使用情境：</label>
+        <textarea 
+          v-model="editingSentence.context" 
+          placeholder="请描述这个句子的使用场景，比如：与朋友对话时、正式场合、购物时等"
+          class="form-textarea"
+          rows="3"
+        ></textarea>
+      </div>
+      <div class="form-actions">
+        <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
+          保存
+        </button>
+        <button @click="cancelEdit" class="cancel-btn">
+          取消
+        </button>
+      </div>
+    </div>
+
     <!-- 添加句子表单 -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-group">
@@ -69,9 +109,14 @@
           </div>
           <div class="sentence-date">{{ formatDate(sentence.createdAt) }}</div>
         </div>
-        <button @click="deleteSentence(sentence.id)" class="delete-btn">
-          🗑️
-        </button>
+        <div class="sentence-actions">
+          <button @click="editSentence(sentence)" class="edit-btn">
+            ✏️
+          </button>
+          <button @click="deleteSentence(sentence.id)" class="delete-btn">
+            🗑️
+          </button>
+        </div>
       </div>
     </div>
 
@@ -94,7 +139,14 @@ export default {
   setup() {
     const dataStore = useDataStore()
     const showAddForm = ref(false)
+    const showEditForm = ref(false)
     const newSentence = ref({
+      japanese: '',
+      chinese: '',
+      context: ''
+    })
+    const editingSentence = ref({
+      id: '',
       japanese: '',
       chinese: '',
       context: ''
@@ -102,6 +154,10 @@ export default {
 
     const canSave = computed(() => {
       return newSentence.value.japanese.trim() && newSentence.value.chinese.trim()
+    })
+
+    const canSaveEdit = computed(() => {
+      return editingSentence.value.japanese.trim() && editingSentence.value.chinese.trim()
     })
 
     const addSentence = () => {
@@ -119,6 +175,38 @@ export default {
     const cancelAdd = () => {
       newSentence.value = { japanese: '', chinese: '', context: '' }
       showAddForm.value = false
+    }
+
+    const editSentence = (sentence) => {
+      editingSentence.value = {
+        id: sentence.id,
+        japanese: sentence.japanese,
+        chinese: sentence.chinese,
+        context: sentence.context || ''
+      }
+      showEditForm.value = true
+      showAddForm.value = false
+    }
+
+    const saveEdit = async () => {
+      if (canSaveEdit.value) {
+        try {
+          await dataStore.updateSentence(editingSentence.value.id, {
+            japanese: editingSentence.value.japanese.trim(),
+            chinese: editingSentence.value.chinese.trim(),
+            context: editingSentence.value.context.trim()
+          })
+          showEditForm.value = false
+          editingSentence.value = { id: '', japanese: '', chinese: '', context: '' }
+        } catch (error) {
+          alert(`更新失败：${error.message}`)
+        }
+      }
+    }
+
+    const cancelEdit = () => {
+      showEditForm.value = false
+      editingSentence.value = { id: '', japanese: '', chinese: '', context: '' }
     }
 
     const deleteSentence = (id) => {
@@ -159,10 +247,16 @@ export default {
     return {
       dataStore,
       showAddForm,
+      showEditForm,
       newSentence,
+      editingSentence,
       canSave,
+      canSaveEdit,
       addSentence,
       cancelAdd,
+      editSentence,
+      saveEdit,
+      cancelEdit,
       deleteSentence,
       formatDate
     }
@@ -203,12 +297,19 @@ export default {
   transform: translateY(-2px);
 }
 
-.add-form {
+.add-form,
+.edit-form {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
   margin-bottom: 1.5rem;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.edit-form h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
 }
 
 .form-group {
@@ -357,6 +458,27 @@ export default {
   color: #999;
 }
 
+.sentence-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.edit-btn {
+  background: #ffc107;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.edit-btn:hover {
+  background: #e0a800;
+}
+
 .delete-btn {
   background: #dc3545;
   color: white;
@@ -366,7 +488,6 @@ export default {
   cursor: pointer;
   font-size: 1rem;
   transition: background-color 0.3s;
-  flex-shrink: 0;
 }
 
 .delete-btn:hover {
@@ -423,8 +544,9 @@ export default {
     margin-right: 0;
   }
   
-  .delete-btn {
+  .sentence-actions {
     align-self: flex-end;
+    flex-direction: row;
   }
 }
 </style>

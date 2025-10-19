@@ -7,6 +7,37 @@
       </button>
     </div>
 
+    <!-- 编辑问答表单 -->
+    <div v-if="showEditForm" class="edit-form">
+      <h3>编辑问答</h3>
+      <div class="form-group">
+        <label>问题：</label>
+        <textarea 
+          v-model="editingQA.question" 
+          placeholder="请输入问题"
+          class="form-textarea"
+          rows="3"
+        ></textarea>
+      </div>
+      <div class="form-group">
+        <label>答案：</label>
+        <textarea 
+          v-model="editingQA.answer" 
+          placeholder="请输入答案（支持长文本，会自动换行）"
+          class="form-textarea answer-textarea"
+          rows="4"
+        ></textarea>
+      </div>
+      <div class="form-actions">
+        <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
+          保存
+        </button>
+        <button @click="cancelEdit" class="cancel-btn">
+          取消
+        </button>
+      </div>
+    </div>
+
     <!-- 添加问答表单 -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-group">
@@ -57,9 +88,14 @@
           </div>
           <div class="qa-date">{{ formatDate(qa.createdAt) }}</div>
         </div>
-        <button @click="deleteQA(qa.id)" class="delete-btn">
-          🗑️
-        </button>
+        <div class="qa-actions">
+          <button @click="editQA(qa)" class="edit-btn">
+            ✏️
+          </button>
+          <button @click="deleteQA(qa.id)" class="delete-btn">
+            🗑️
+          </button>
+        </div>
       </div>
     </div>
 
@@ -82,13 +118,23 @@ export default {
   setup() {
     const dataStore = useDataStore()
     const showAddForm = ref(false)
+    const showEditForm = ref(false)
     const newQA = ref({
+      question: '',
+      answer: ''
+    })
+    const editingQA = ref({
+      id: '',
       question: '',
       answer: ''
     })
 
     const canSave = computed(() => {
       return newQA.value.question.trim() && newQA.value.answer.trim()
+    })
+
+    const canSaveEdit = computed(() => {
+      return editingQA.value.question.trim() && editingQA.value.answer.trim()
     })
 
     const addQA = () => {
@@ -105,6 +151,36 @@ export default {
     const cancelAdd = () => {
       newQA.value = { question: '', answer: '' }
       showAddForm.value = false
+    }
+
+    const editQA = (qa) => {
+      editingQA.value = {
+        id: qa.id,
+        question: qa.question,
+        answer: qa.answer
+      }
+      showEditForm.value = true
+      showAddForm.value = false
+    }
+
+    const saveEdit = async () => {
+      if (canSaveEdit.value) {
+        try {
+          await dataStore.updateQA(editingQA.value.id, {
+            question: editingQA.value.question.trim(),
+            answer: editingQA.value.answer.trim()
+          })
+          showEditForm.value = false
+          editingQA.value = { id: '', question: '', answer: '' }
+        } catch (error) {
+          alert(`更新失败：${error.message}`)
+        }
+      }
+    }
+
+    const cancelEdit = () => {
+      showEditForm.value = false
+      editingQA.value = { id: '', question: '', answer: '' }
     }
 
     const deleteQA = (id) => {
@@ -145,10 +221,16 @@ export default {
     return {
       dataStore,
       showAddForm,
+      showEditForm,
       newQA,
+      editingQA,
       canSave,
+      canSaveEdit,
       addQA,
       cancelAdd,
+      editQA,
+      saveEdit,
+      cancelEdit,
       deleteQA,
       formatDate
     }
@@ -189,12 +271,19 @@ export default {
   transform: translateY(-2px);
 }
 
-.add-form {
+.add-form,
+.edit-form {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
   margin-bottom: 1.5rem;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.edit-form h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
 }
 
 .form-group {
@@ -375,6 +464,27 @@ export default {
   color: #999;
 }
 
+.qa-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.edit-btn {
+  background: #ffc107;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.edit-btn:hover {
+  background: #e0a800;
+}
+
 .delete-btn {
   background: #dc3545;
   color: white;
@@ -384,7 +494,6 @@ export default {
   cursor: pointer;
   font-size: 1rem;
   transition: background-color 0.3s;
-  flex-shrink: 0;
 }
 
 .delete-btn:hover {
@@ -441,8 +550,9 @@ export default {
     margin-right: 0;
   }
   
-  .delete-btn {
+  .qa-actions {
     align-self: flex-end;
+    flex-direction: row;
   }
   
   .qa-question,

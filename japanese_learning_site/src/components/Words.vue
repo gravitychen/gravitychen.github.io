@@ -7,6 +7,37 @@
       </button>
     </div>
 
+    <!-- 编辑单词表单 -->
+    <div v-if="showEditForm" class="edit-form">
+      <h3>编辑单词</h3>
+      <div class="form-group">
+        <label>{{ dataStore.currentLanguageName }}单词：</label>
+        <input 
+          v-model="editingWord.japanese" 
+          type="text" 
+          :placeholder="`请输入${dataStore.currentLanguageName}单词`"
+          class="form-input"
+        />
+      </div>
+      <div class="form-group">
+        <label>中文翻译：</label>
+        <input 
+          v-model="editingWord.chinese" 
+          type="text" 
+          placeholder="请输入中文翻译"
+          class="form-input"
+        />
+      </div>
+      <div class="form-actions">
+        <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
+          保存
+        </button>
+        <button @click="cancelEdit" class="cancel-btn">
+          取消
+        </button>
+      </div>
+    </div>
+
     <!-- 添加单词表单 -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-group">
@@ -57,9 +88,14 @@
           </div>
           <div class="word-date">{{ formatDate(word.createdAt) }}</div>
         </div>
-        <button @click="deleteWord(word.id)" class="delete-btn">
-          🗑️
-        </button>
+        <div class="word-actions">
+          <button @click="editWord(word)" class="edit-btn">
+            ✏️
+          </button>
+          <button @click="deleteWord(word.id)" class="delete-btn">
+            🗑️
+          </button>
+        </div>
       </div>
     </div>
 
@@ -82,13 +118,23 @@ export default {
   setup() {
     const dataStore = useDataStore()
     const showAddForm = ref(false)
+    const showEditForm = ref(false)
     const newWord = ref({
+      japanese: '',
+      chinese: ''
+    })
+    const editingWord = ref({
+      id: '',
       japanese: '',
       chinese: ''
     })
 
     const canSave = computed(() => {
       return newWord.value.japanese.trim() && newWord.value.chinese.trim()
+    })
+
+    const canSaveEdit = computed(() => {
+      return editingWord.value.japanese.trim() && editingWord.value.chinese.trim()
     })
 
     const addWord = () => {
@@ -105,6 +151,36 @@ export default {
     const cancelAdd = () => {
       newWord.value = { japanese: '', chinese: '' }
       showAddForm.value = false
+    }
+
+    const editWord = (word) => {
+      editingWord.value = {
+        id: word.id,
+        japanese: word.japanese,
+        chinese: word.chinese
+      }
+      showEditForm.value = true
+      showAddForm.value = false
+    }
+
+    const saveEdit = async () => {
+      if (canSaveEdit.value) {
+        try {
+          await dataStore.updateWord(editingWord.value.id, {
+            japanese: editingWord.value.japanese.trim(),
+            chinese: editingWord.value.chinese.trim()
+          })
+          showEditForm.value = false
+          editingWord.value = { id: '', japanese: '', chinese: '' }
+        } catch (error) {
+          alert(`更新失败：${error.message}`)
+        }
+      }
+    }
+
+    const cancelEdit = () => {
+      showEditForm.value = false
+      editingWord.value = { id: '', japanese: '', chinese: '' }
     }
 
     const deleteWord = (id) => {
@@ -145,10 +221,16 @@ export default {
     return {
       dataStore,
       showAddForm,
+      showEditForm,
       newWord,
+      editingWord,
       canSave,
+      canSaveEdit,
       addWord,
       cancelAdd,
+      editWord,
+      saveEdit,
+      cancelEdit,
       deleteWord,
       formatDate
     }
@@ -189,12 +271,19 @@ export default {
   transform: translateY(-2px);
 }
 
-.add-form {
+.add-form,
+.edit-form {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
   margin-bottom: 1.5rem;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.edit-form h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
 }
 
 .form-group {
@@ -323,6 +412,26 @@ export default {
   color: #999;
 }
 
+.word-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.edit-btn {
+  background: #ffc107;
+  color: white;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.edit-btn:hover {
+  background: #e0a800;
+}
+
 .delete-btn {
   background: #dc3545;
   color: white;
@@ -384,8 +493,9 @@ export default {
     gap: 1rem;
   }
   
-  .delete-btn {
+  .word-actions {
     align-self: flex-end;
+    flex-direction: row;
   }
 }
 </style>

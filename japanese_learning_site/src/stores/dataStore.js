@@ -310,6 +310,22 @@ export const useDataStore = defineStore('data', {
       }
     },
 
+    async updateWord(id, wordData) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能更新数据')
+      }
+
+      try {
+        console.log('更新单词:', id, wordData)
+        await dataService.updateData('words', id, wordData, this.currentLanguage)
+        console.log('单词更新成功')
+        // 数据会通过实时监听自动更新
+      } catch (error) {
+        console.error('更新单词失败:', error)
+        throw error
+      }
+    },
+
     async deleteWord(id) {
       if (!this.isOnline) {
         throw new Error('需要网络连接才能删除数据')
@@ -356,6 +372,22 @@ export const useDataStore = defineStore('data', {
       }
     },
 
+    async updateSentence(id, sentenceData) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能更新数据')
+      }
+
+      try {
+        console.log('更新句子:', id, sentenceData)
+        await dataService.updateData('sentences', id, sentenceData, this.currentLanguage)
+        console.log('句子更新成功')
+        // 数据会通过实时监听自动更新
+      } catch (error) {
+        console.error('更新句子失败:', error)
+        throw error
+      }
+    },
+
     async deleteSentence(id) {
       if (!this.isOnline) {
         throw new Error('需要网络连接才能删除数据')
@@ -397,6 +429,22 @@ export const useDataStore = defineStore('data', {
         return cloudQA
       } catch (error) {
         console.error('同步问答到云端失败:', error)
+        throw error
+      }
+    },
+
+    async updateQA(id, qaData) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能更新数据')
+      }
+
+      try {
+        console.log('更新问答:', id, qaData)
+        await dataService.updateData('qa', id, qaData, this.currentLanguage)
+        console.log('问答更新成功')
+        // 数据会通过实时监听自动更新
+      } catch (error) {
+        console.error('更新问答失败:', error)
         throw error
       }
     },

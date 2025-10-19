@@ -104,10 +104,6 @@
           <span class="btn-icon">📥</span>
           <span class="btn-text">导入数据</span>
         </button>
-        <button @click="testImport" class="data-btn test-btn">
-          <span class="btn-icon">🧪</span>
-          <span class="btn-text">测试导入</span>
-        </button>
       </div>
       
       <!-- 导入对话框 -->
@@ -184,39 +180,6 @@ export default {
       }
     }
 
-    // 测试导入功能
-    const testImport = async () => {
-      try {
-        // 创建一个测试数据
-        const testData = {
-          words: [
-            {
-              japanese: "テスト",
-              chinese: "测试"
-            }
-          ],
-          sentences: [
-            {
-              japanese: "これはテストです",
-              chinese: "这是测试",
-              context: "测试用"
-            }
-          ],
-          qa: [
-            {
-              question: "テストは何ですか？",
-              answer: "テストは試験のことです"
-            }
-          ]
-        }
-        
-        await dataStore.importData(JSON.stringify(testData))
-        alert('测试数据导入成功！')
-      } catch (error) {
-        alert(`测试导入失败：${error.message}`)
-        console.error('测试导入失败:', error)
-      }
-    }
 
     return {
       dataStore,
@@ -224,8 +187,7 @@ export default {
       showImportDialog,
       importData,
       exportData,
-      importDataConfirm,
-      testImport
+      importDataConfirm
     }
   }
 }
@@ -465,15 +427,6 @@ export default {
   transform: translateY(-2px);
 }
 
-.test-btn {
-  background: #6f42c1;
-  color: white;
-}
-
-.test-btn:hover {
-  background: #5a32a3;
-  transform: translateY(-2px);
-}
 
 .import-dialog {
   position: fixed;
