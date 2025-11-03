@@ -325,11 +325,29 @@ export default {
     }
 
     const generateChoiceQuestion = (item) => {
+      // 根据显示语言设置决定题目和答案
+      let questionText, correctAnswerText
+      
+      if (item.type === 'word') {
+        // 单词类型：根据 showJapanese 切换
+        if (dataStore.showJapanese) {
+          questionText = item.japanese
+          correctAnswerText = item.chinese
+        } else {
+          questionText = item.chinese
+          correctAnswerText = item.japanese
+        }
+      } else {
+        // 句子和问答类型：保持原样
+        questionText = item.japanese || item.question
+        correctAnswerText = item.chinese || item.answer
+      }
+      
       const question = {
         id: item.id,
         type: item.type,
-        question: item.japanese || item.question,
-        correctAnswer: item.chinese || item.answer,
+        question: questionText,
+        correctAnswer: correctAnswerText,
         choices: []
       }
 
@@ -338,7 +356,12 @@ export default {
       if (item.type === 'word') {
         const otherWords = dataStore.words.filter(w => w.id !== item.id)
         const shuffled = otherWords.sort(() => Math.random() - 0.5)
-        wrongChoices.push(...shuffled.slice(0, 3).map(w => w.chinese))
+        // 根据显示语言选择错误选项的来源
+        if (dataStore.showJapanese) {
+          wrongChoices.push(...shuffled.slice(0, 3).map(w => w.chinese))
+        } else {
+          wrongChoices.push(...shuffled.slice(0, 3).map(w => w.japanese))
+        }
       } else if (item.type === 'sentence') {
         const otherSentences = dataStore.sentences.filter(s => s.id !== item.id)
         const shuffled = otherSentences.sort(() => Math.random() - 0.5)
@@ -357,11 +380,29 @@ export default {
     }
 
     const generateInputQuestion = (item) => {
+      // 根据显示语言设置决定题目和答案
+      let questionText, correctAnswerText
+      
+      if (item.type === 'word') {
+        // 单词类型：根据 showJapanese 切换
+        if (dataStore.showJapanese) {
+          questionText = item.japanese
+          correctAnswerText = item.chinese
+        } else {
+          questionText = item.chinese
+          correctAnswerText = item.japanese
+        }
+      } else {
+        // 句子和问答类型：保持原样
+        questionText = item.japanese || item.question
+        correctAnswerText = item.chinese || item.answer
+      }
+      
       return {
         id: item.id,
         type: item.type,
-        question: item.japanese || item.question,
-        correctAnswer: item.chinese || item.answer
+        question: questionText,
+        correctAnswer: correctAnswerText
       }
     }
 

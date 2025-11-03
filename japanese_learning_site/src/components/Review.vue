@@ -69,33 +69,115 @@
       </div>
 
       <div class="review-content">
-        <div class="review-item">
-          <div class="item-question">
-            {{ getCurrentItem().japanese || getCurrentItem().question }}
-          </div>
-          <div v-if="showAnswer" class="item-answer">
-            {{ getCurrentItem().chinese || getCurrentItem().answer }}
-          </div>
-        </div>
+        <!-- 句子复习：三步渐进式显示 -->
+        <template v-if="reviewType === 'sentences'">
+          <div class="review-item">
+            <!-- 步骤1：显示中文 + 强调内在感觉 -->
+            <div v-if="sentenceStep === 1" class="sentence-step">
+              <div class="step-label">步骤 1/3</div>
+              <div class="item-chinese">{{ getCurrentItem().chinese }}</div>
+              <div class="step-hint highlight-hint">
+                💭 重要提示：不要只看中文文字！<br>
+                要主动联想到对应的内在感觉，用心感受这个句子传达的情感或意图。
+              </div>
+            </div>
 
-        <div class="review-actions">
-          <button 
-            v-if="!showAnswer" 
-            @click="showAnswer = true" 
-            class="show-answer-btn"
-          >
-            显示答案
-          </button>
-          
-          <div v-if="showAnswer" class="answer-actions">
-            <button @click="markCorrect" class="correct-btn">
-              ✅ 记住了
-            </button>
-            <button @click="markIncorrect" class="incorrect-btn">
-              ❌ 没记住
-            </button>
+            <!-- 步骤2：显示使用场景 + 强调身临其境（不显示中文） -->
+            <div v-if="sentenceStep === 2" class="sentence-step">
+              <div class="step-label">步骤 2/3</div>
+              <div class="item-context">
+                <div class="context-label">📍 使用情境：</div>
+                <div class="context-content">{{ getCurrentItem().context || '（未设置使用情境）' }}</div>
+              </div>
+              <div class="step-hint highlight-hint">
+                🎬 重要提示：要主动去联想这个场景！<br>
+                要有身临其境感，想象自己在这个情境中，体会当时的感觉和情绪。
+              </div>
+            </div>
+
+            <!-- 步骤3：显示日语答案 -->
+            <div v-if="sentenceStep === 3" class="sentence-step">
+              <div class="step-label">步骤 3/3</div>
+              <div class="item-chinese">{{ getCurrentItem().chinese }}</div>
+              <div class="item-context" v-if="getCurrentItem().context">
+                <div class="context-label">📍 使用情境：</div>
+                <div class="context-content">{{ getCurrentItem().context }}</div>
+              </div>
+              <div class="item-answer">
+                <div class="answer-label">🇯🇵 {{ dataStore.currentLanguageName }}句子：</div>
+                <div class="answer-content">{{ getCurrentItem().japanese }}</div>
+              </div>
+            </div>
           </div>
-        </div>
+
+          <div class="review-actions">
+            <button 
+              v-if="sentenceStep === 1" 
+              @click="sentenceStep = 2" 
+              class="show-answer-btn"
+            >
+              下一步：查看使用情境
+            </button>
+            
+            <button 
+              v-if="sentenceStep === 2" 
+              @click="sentenceStep = 3" 
+              class="show-answer-btn"
+            >
+              下一步：查看{{ dataStore.currentLanguageName }}句子
+            </button>
+            
+            <div v-if="sentenceStep === 3" class="answer-actions">
+              <button @click="markCorrect" class="correct-btn">
+                ✅ 记住了
+              </button>
+              <button @click="markIncorrect" class="incorrect-btn">
+                ❌ 没记住
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- 单词和问答复习：原有逻辑 -->
+        <template v-else>
+          <div class="review-item">
+            <div class="item-question">
+              <template v-if="reviewType === 'words'">
+                {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+              </template>
+              <template v-else>
+                {{ getCurrentItem().japanese || getCurrentItem().question }}
+              </template>
+            </div>
+            <div v-if="showAnswer" class="item-answer">
+              <template v-if="reviewType === 'words'">
+                {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+              </template>
+              <template v-else>
+                {{ getCurrentItem().chinese || getCurrentItem().answer }}
+              </template>
+            </div>
+          </div>
+
+          <div class="review-actions">
+            <button 
+              v-if="!showAnswer" 
+              @click="showAnswer = true" 
+              class="show-answer-btn"
+            >
+              显示答案
+            </button>
+            
+            <div v-if="showAnswer" class="answer-actions">
+              <button @click="markCorrect" class="correct-btn">
+                ✅ 记住了
+              </button>
+              <button @click="markIncorrect" class="incorrect-btn">
+                ❌ 没记住
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
 
       <div class="review-controls">
@@ -142,6 +224,8 @@ export default {
     const showAnswer = ref(false)
     const correctCount = ref(0)
     const reviewCompleted = ref(false)
+    // 句子复习的步骤状态（1: 中文+提示, 2: 场景+提示, 3: 日语答案）
+    const sentenceStep = ref(1)
 
     const totalToReview = computed(() => {
       return dataStore.wordsToReview.length + 
@@ -170,6 +254,8 @@ export default {
       showAnswer.value = false
       correctCount.value = 0
       reviewCompleted.value = false
+      // 句子复习重置到第一步
+      sentenceStep.value = 1
     }
 
     const getCurrentItem = () => {
@@ -199,6 +285,10 @@ export default {
       if (currentIndex.value < reviewItems.value.length - 1) {
         currentIndex.value++
         showAnswer.value = false
+        // 句子复习重置到第一步
+        if (reviewType.value === 'sentences') {
+          sentenceStep.value = 1
+        }
       } else {
         reviewCompleted.value = true
         reviewMode.value = false
@@ -231,6 +321,7 @@ export default {
       reviewCompleted,
       totalToReview,
       completedCount,
+      sentenceStep,
       startReview,
       getCurrentItem,
       getReviewTitle,
@@ -388,6 +479,10 @@ export default {
   text-align: center;
 }
 
+.review-item .item-answer {
+  text-align: left;
+}
+
 .item-question {
   font-size: 1.5rem;
   font-weight: bold;
@@ -399,7 +494,97 @@ export default {
 .item-answer {
   font-size: 1.2rem;
   color: #666;
-  line-height: 1.4;
+  line-height: 1.6;              /* 增加行高，提高可读性 */
+  word-wrap: break-word;          /* 允许长单词换行 */
+  word-break: break-word;         /* 允许在单词内断行（防止溢出） */
+  white-space: pre-wrap;          /* 🔑 关键：保留换行符并允许文本换行 */
+  text-align: left;                /* 左对齐，更适合长文本阅读 */
+  padding: 1rem;                   /* 增加内边距，提升视觉效果 */
+  background: rgba(255, 255, 255, 0.5);  /* 添加背景色，区分答案区域 */
+  border-radius: 8px;              /* 圆角美化 */
+  border-left: 3px solid #667eea;  /* 左侧边框，视觉引导 */
+}
+
+/* 句子复习三步显示样式 */
+.sentence-step {
+  text-align: left;
+}
+
+.step-label {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.item-chinese {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border-left: 4px solid #28a745;
+}
+
+.step-hint {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.highlight-hint {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.15) 100%);
+  border-left: 4px solid #ffc107;
+  color: #856404;
+  font-weight: 500;
+}
+
+.item-context {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.context-label {
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.context-content {
+  color: #333;
+  line-height: 1.6;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  font-size: 1rem;
+}
+
+.item-answer .answer-label {
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.item-answer .answer-content {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.6;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .review-actions {

@@ -527,53 +527,64 @@ export default {
 }
 
 .speech-btn {
-  background: #17a2b8;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
   padding: 0.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .speech-btn:hover:not(:disabled) {
-  background: #138496;
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .speech-btn:disabled {
-  background: #6c757d;
+  background: #cbd5e0;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .edit-btn {
-  background: #ffc107;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
   border: none;
   padding: 0.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
 }
 
 .edit-btn:hover {
-  background: #e0a800;
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
 }
 
 .delete-btn {
-  background: #dc3545;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
   color: white;
   border: none;
   padding: 0.5rem;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(250, 112, 154, 0.3);
 }
 
 .delete-btn:hover {
-  background: #c82333;
+  background: linear-gradient(135deg, #fee140 0%, #fa709a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(250, 112, 154, 0.4);
 }
 
 .stats {
