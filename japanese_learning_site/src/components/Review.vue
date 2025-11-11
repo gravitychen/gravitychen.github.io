@@ -7,21 +7,6 @@
       </div>
     </div>
 
-    <!-- 复习统计 -->
-    <div class="review-stats">
-      <div class="stat-card">
-        <div class="stat-number">{{ dataStore.wordsToReview.length }}</div>
-        <div class="stat-label">单词待复习</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">{{ dataStore.sentencesToReview.length }}</div>
-        <div class="stat-label">句子待复习</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number">{{ dataStore.qaToReview.length }}</div>
-        <div class="stat-label">问答待复习</div>
-      </div>
-    </div>
 
     <!-- 集中复习区 -->
     <div v-if="dataStore.totalIncorrectItems > 0" class="incorrect-review-section">
@@ -427,9 +412,9 @@ export default {
     }
 
     // 清除所有"没记住"的标记
-    const clearIncorrectItems = () => {
+    const clearIncorrectItems = async () => {
       if (confirm('确定要清除所有"没记住"的标记吗？')) {
-        dataStore.clearIncorrectItems()
+        await dataStore.clearIncorrectItems()
         alert('已清除所有标记')
       }
     }
@@ -460,31 +445,54 @@ export default {
       return reviewType.value
     }
 
-    const markCorrect = () => {
+    const markCorrect = async () => {
       correctCount.value++
       const item = getCurrentItem()
       // 判断是集中复习还是普通复习
       if (item._type) {
-        // 集中复习模式
+        // 集中复习模式：点击"记住了"才从集中复习区移除
         const itemType = item._type // 'word', 'sentence', 'qa'
-        dataStore.markAsReviewed(itemType, item.id)
+        await dataStore.markAsReviewed(itemType, item.id, true) // true 表示从集中复习区移除
+        
+        // 从当前复习列表中移除该项目（因为已经从集中复习区移除了）
+        reviewItems.value = reviewItems.value.filter(i => i.id !== item.id)
+        
+        // 如果列表为空，结束复习
+        if (reviewItems.value.length === 0) {
+          reviewCompleted.value = true
+          reviewMode.value = false
+          return
+        }
+        
+        // 如果当前索引超出范围，调整索引（不移除项目后，索引可能不变，但列表变短了）
+        if (currentIndex.value >= reviewItems.value.length) {
+          currentIndex.value = reviewItems.value.length - 1
+        }
+        
+        // 重置显示状态，显示下一个项目
+        showAnswer.value = false
+        if (memoryMode.value === 'scenario') {
+          sentenceStep.value = 1
+        }
+        // 不需要调用 nextItem()，因为索引已经正确了
       } else {
-        // 普通复习模式
-        dataStore.markAsReviewed(reviewType.value.slice(0, -1), item.id)
+        // 普通复习模式：标记为已复习，但不从集中复习区移除
+        // 因为集中复习区的项目不会出现在普通复习区，所以这里不需要处理集中复习区
+        await dataStore.markAsReviewed(reviewType.value.slice(0, -1), item.id, false) // false 表示不从集中复习区移除
+        nextItem()
       }
-      nextItem()
     }
 
-    const markIncorrect = () => {
+    const markIncorrect = async () => {
       const item = getCurrentItem()
       // 判断是集中复习还是普通复习
       if (item._type) {
-        // 集中复习模式：保持标记为"没记住"
+        // 集中复习模式：保持标记为"没记住"，继续留在集中复习区
         // 不需要再次标记，因为已经在列表中
       } else {
-        // 普通复习模式：将当前项目标记为"没记住"
+        // 普通复习模式：将当前项目标记为"没记住"，添加到集中复习区
         const itemType = reviewType.value.slice(0, -1) // 'words' -> 'word', 'sentences' -> 'sentence'
-        dataStore.markAsIncorrect(itemType, item.id)
+        await dataStore.markAsIncorrect(itemType, item.id)
       }
       nextItem()
     }

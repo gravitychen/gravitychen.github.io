@@ -56,8 +56,11 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// 初始化云端同步
+// 应用启动时立即加载本地存储的复习进度（包括集中复习区数据）
 const dataStore = useDataStore()
+dataStore.loadReviewProgressFromLocal()
+
+// 初始化云端同步
 dataStore.initializeCloudSync()
 
 // 应用启动后立即尝试自动登录

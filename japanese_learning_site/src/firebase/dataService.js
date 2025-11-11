@@ -2,6 +2,7 @@ import {
   collection, 
   doc, 
   getDocs, 
+  getDoc,
   addDoc,
   setDoc, 
   deleteDoc, 
@@ -36,6 +37,17 @@ class DataService {
     }
     // 使用用户ID作为数据路径（保持向后兼容）
     return collection(db, 'users', this.deviceUserId, collectionName)
+  }
+
+  // 获取用户文档引用（用于保存单一数据，如 reviewProgress）
+  // 注意：Firestore 路径必须是偶数段（集合/文档/集合/文档...）
+  // 所以 reviewProgress 应该作为用户文档的一个字段，而不是子文档
+  getUserDoc() {
+    if (!this.deviceUserId) {
+      throw new Error('用户未认证')
+    }
+    // 返回用户文档：users/{userId}
+    return doc(db, 'users', this.deviceUserId)
   }
 
   // 添加数据
@@ -162,6 +174,110 @@ class DataService {
       id: doc.id,
       ...doc.data()
     }))
+  }
+
+  // 保存复习进度到云端
+  // reviewProgress 作为用户文档的一个字段存储
+  async saveReviewProgress(reviewProgress) {
+    const timestamp = new Date().toISOString()
+    const incorrectItemsCount = Object.keys(reviewProgress).filter(k => k.startsWith('incorrect_')).length
+    const totalItemsCount = Object.keys(reviewProgress).length
+    
+    console.log(`[Firebase日志 ${timestamp}] 💾 saveReviewProgress 开始:`, {
+      deviceUserId: this.deviceUserId,
+      totalItems: totalItemsCount,
+      incorrectItems: incorrectItemsCount,
+      dataSize: JSON.stringify(reviewProgress).length
+    })
+    
+    if (!this.deviceUserId) {
+      const error = new Error('用户未认证')
+      console.error(`[Firebase日志 ${timestamp}] ❌ 保存失败:`, error.message)
+      throw error
+    }
+    
+    try {
+      // 使用用户文档，将 reviewProgress 作为字段存储
+      const userDocRef = this.getUserDoc()
+      const startTime = Date.now()
+      
+      await setDoc(userDocRef, {
+        reviewProgress: reviewProgress,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+      
+      const duration = Date.now() - startTime
+      console.log(`[Firebase日志 ${timestamp}] ✅ 复习进度已保存到 Firebase (耗时: ${duration}ms):`, {
+        path: `users/${this.deviceUserId}`,
+        field: 'reviewProgress',
+        totalItems: totalItemsCount,
+        incorrectItems: incorrectItemsCount,
+        dataSize: JSON.stringify(reviewProgress).length
+      })
+    } catch (error) {
+      console.error(`[Firebase日志 ${timestamp}] ❌ 保存复习进度到 Firebase 失败:`, {
+        error: error.message,
+        code: error.code,
+        stack: error.stack,
+        deviceUserId: this.deviceUserId,
+        totalItems: totalItemsCount,
+        incorrectItems: incorrectItemsCount
+      })
+      throw error
+    }
+  }
+
+  // 从云端加载复习进度
+  // reviewProgress 作为用户文档的一个字段读取
+  async getReviewProgress() {
+    const timestamp = new Date().toISOString()
+    console.log(`[Firebase日志 ${timestamp}] 📥 getReviewProgress 开始:`, {
+      deviceUserId: this.deviceUserId
+    })
+    
+    if (!this.deviceUserId) {
+      console.warn(`[Firebase日志 ${timestamp}] ⚠️ 用户未认证，返回空数据`)
+      return {}
+    }
+    
+    try {
+      // 读取用户文档，获取 reviewProgress 字段
+      const userDocRef = this.getUserDoc()
+      const startTime = Date.now()
+      const docSnap = await getDoc(userDocRef)
+      const duration = Date.now() - startTime
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data()
+        const reviewProgress = data.reviewProgress || {}
+        const totalItems = Object.keys(reviewProgress).length
+        const incorrectItems = Object.keys(reviewProgress).filter(k => k.startsWith('incorrect_')).length
+        
+        console.log(`[Firebase日志 ${timestamp}] ✅ 从 Firebase 加载复习进度成功 (耗时: ${duration}ms):`, {
+          path: `users/${this.deviceUserId}`,
+          field: 'reviewProgress',
+          totalItems: totalItems,
+          incorrectItems: incorrectItems,
+          dataSize: JSON.stringify(reviewProgress).length,
+          updatedAt: data.updatedAt ? (data.updatedAt.seconds ? new Date(data.updatedAt.seconds * 1000).toISOString() : data.updatedAt) : 'N/A'
+        })
+        return reviewProgress
+      } else {
+        console.log(`[Firebase日志 ${timestamp}] ℹ️ Firebase 云端没有用户文档:`, {
+          path: `users/${this.deviceUserId}`,
+          duration: duration + 'ms'
+        })
+        return {}
+      }
+    } catch (error) {
+      console.error(`[Firebase日志 ${timestamp}] ❌ 从 Firebase 加载复习进度失败:`, {
+        error: error.message,
+        code: error.code,
+        stack: error.stack,
+        deviceUserId: this.deviceUserId
+      })
+      return {}
+    }
   }
 
   // 手动数据迁移（需要用户在Firebase控制台手动操作）

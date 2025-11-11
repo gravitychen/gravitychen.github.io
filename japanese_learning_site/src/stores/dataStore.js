@@ -46,11 +46,15 @@ export const useDataStore = defineStore('data', {
     totalSentences: (state) => state.sentences.length,
     totalQA: (state) => state.qa.length,
     
-    // 获取需要复习的内容
+    // 获取需要复习的内容（排除集中复习区的项目）
     wordsToReview: (state) => {
       const now = Date.now()
       const oneDayMs = 24 * 60 * 60 * 1000
       return state.words.filter(word => {
+        // 如果项目在集中复习区，不显示在普通复习区
+        if (state.reviewProgress[`incorrect_word_${word.id}`]) {
+          return false
+        }
         const lastReview = state.reviewProgress[`word_${word.id}`]
         return !lastReview || (now - lastReview) >= oneDayMs
       })
@@ -60,6 +64,10 @@ export const useDataStore = defineStore('data', {
       const now = Date.now()
       const oneDayMs = 24 * 60 * 60 * 1000
       return state.sentences.filter(sentence => {
+        // 如果项目在集中复习区，不显示在普通复习区
+        if (state.reviewProgress[`incorrect_sentence_${sentence.id}`]) {
+          return false
+        }
         const lastReview = state.reviewProgress[`sentence_${sentence.id}`]
         return !lastReview || (now - lastReview) >= oneDayMs
       })
@@ -69,6 +77,10 @@ export const useDataStore = defineStore('data', {
       const now = Date.now()
       const oneDayMs = 24 * 60 * 60 * 1000
       return state.qa.filter(qa => {
+        // 如果项目在集中复习区，不显示在普通复习区
+        if (state.reviewProgress[`incorrect_qa_${qa.id}`]) {
+          return false
+        }
         const lastReview = state.reviewProgress[`qa_${qa.id}`]
         return !lastReview || (now - lastReview) >= oneDayMs
       })
@@ -85,24 +97,25 @@ export const useDataStore = defineStore('data', {
       return lang ? lang.name : '未知语言'
     },
     
-    // 获取"没记住"的项目列表
+    // 获取"没记住"的项目列表（从 reviewProgress 中读取）
     incorrectWords: (state) => {
-      return state.words.filter(word => state.incorrectItems.words.has(word.id))
+      return state.words.filter(word => state.reviewProgress[`incorrect_word_${word.id}`] === true)
     },
     
     incorrectSentences: (state) => {
-      return state.sentences.filter(sentence => state.incorrectItems.sentences.has(sentence.id))
+      return state.sentences.filter(sentence => state.reviewProgress[`incorrect_sentence_${sentence.id}`] === true)
     },
     
     incorrectQA: (state) => {
-      return state.qa.filter(qa => state.incorrectItems.qa.has(qa.id))
+      return state.qa.filter(qa => state.reviewProgress[`incorrect_qa_${qa.id}`] === true)
     },
     
     // 获取所有"没记住"项目的总数
     totalIncorrectItems: (state) => {
-      return state.incorrectItems.words.size + 
-             state.incorrectItems.sentences.size + 
-             state.incorrectItems.qa.size
+      const wordsCount = state.words.filter(w => state.reviewProgress[`incorrect_word_${w.id}`] === true).length
+      const sentencesCount = state.sentences.filter(s => state.reviewProgress[`incorrect_sentence_${s.id}`] === true).length
+      const qaCount = state.qa.filter(q => state.reviewProgress[`incorrect_qa_${q.id}`] === true).length
+      return wordsCount + sentencesCount + qaCount
     },
     
   },
@@ -133,6 +146,9 @@ export const useDataStore = defineStore('data', {
 
     // 初始化云端同步
     async initializeCloudSync() {
+      // 首先从 localStorage 加载复习进度（包括集中复习区的数据）
+      this.loadReviewProgressFromLocal()
+      
       // 设置认证状态监听器
       authService.setupAuthStateListener()
       
@@ -205,18 +221,24 @@ export const useDataStore = defineStore('data', {
       dataService.listenToData('words', (words) => {
         console.log('单词数据更新:', words.length, '个')
         this.words = words || []
+        // 数据更新后，确保恢复集中复习区的数据
+        this.restoreIncorrectItemsFromProgress()
       }, this.currentLanguage)
 
       // 监听句子变化
       dataService.listenToData('sentences', (sentences) => {
         console.log('句子数据更新:', sentences.length, '个')
         this.sentences = sentences || []
+        // 数据更新后，确保恢复集中复习区的数据
+        this.restoreIncorrectItemsFromProgress()
       }, this.currentLanguage)
 
       // 监听问答变化
       dataService.listenToData('qa', (qa) => {
         console.log('问答数据更新:', qa.length, '个')
         this.qa = qa || []
+        // 数据更新后，确保恢复集中复习区的数据
+        this.restoreIncorrectItemsFromProgress()
       }, this.currentLanguage)
 
       console.log('实时同步监听已设置')
@@ -266,6 +288,9 @@ export const useDataStore = defineStore('data', {
         this.sentences = sentences || []
         this.qa = qa || []
 
+        // 从云端加载复习进度（包括集中复习区数据）
+        await this.syncReviewProgressFromCloud()
+        
         this.lastSyncTime = new Date().toISOString()
         this.syncRetryCount = 0
         console.log('云端同步完成')
@@ -494,29 +519,338 @@ export const useDataStore = defineStore('data', {
 
 
     // 复习进度管理
-    markAsReviewed(type, id) {
+    async markAsReviewed(type, id, removeFromIncorrect = false) {
+      const timestamp = new Date().toISOString()
       const key = `${type}_${id}`
+      console.log(`[复习日志 ${timestamp}] markAsReviewed 开始:`, { type, id, removeFromIncorrect })
+      
       this.reviewProgress[key] = Date.now()
-      // 如果该项目在"没记住"列表中，移除它
-      if (this.incorrectItems[`${type}s`] && this.incorrectItems[`${type}s`].has(id)) {
-        this.incorrectItems[`${type}s`].delete(id)
+      console.log(`[复习日志 ${timestamp}] 已更新复习时间:`, { key, timestamp: this.reviewProgress[key] })
+      
+      // 只有明确指定 removeFromIncorrect = true 时，才从集中复习区移除（永久记忆体）
+      // 默认不移除，因为集中复习区是永久记忆体，只有用户明确点击"记住了"才移除
+      if (removeFromIncorrect) {
+        const incorrectKey = `incorrect_${type}_${id}`
+        if (this.reviewProgress[incorrectKey] === true) {
+          delete this.reviewProgress[incorrectKey]
+          // 同步更新 incorrectItems Set（用于内存中的快速访问）
+          const collectionKey = `${type}s`
+          if (this.incorrectItems[collectionKey]) {
+            this.incorrectItems[collectionKey].delete(id)
+          }
+          console.log(`[复习日志 ${timestamp}] ✅ 项目已从集中复习区移除:`, { type, id, incorrectKey })
+        } else {
+          console.log(`[复习日志 ${timestamp}] ⚠️ 项目不在集中复习区，无需移除:`, { type, id, incorrectKey })
+        }
+      } else {
+        console.log(`[复习日志 ${timestamp}] ℹ️ 不移除集中复习区标记:`, { type, id })
       }
-      // 复习进度通过云端同步
+      
+      // 保存到 localStorage 和云端以便持久化
+      console.log(`[复习日志 ${timestamp}] 开始保存复习进度...`)
+      await this.saveReviewProgressToLocal()
+      console.log(`[复习日志 ${timestamp}] ✅ markAsReviewed 完成`)
     },
     
-    // 标记为"没记住"
-    markAsIncorrect(type, id) {
-      const collectionKey = `${type}s` // words, sentences, qa
+    // 标记为"没记住"（添加到集中复习区 - 永久记忆体）
+    async markAsIncorrect(type, id) {
+      const timestamp = new Date().toISOString()
+      const incorrectKey = `incorrect_${type}_${id}`
+      console.log(`[复习日志 ${timestamp}] 🔴 markAsIncorrect 开始:`, { type, id, incorrectKey })
+      
+      // 永久标记为"没记住"，直到用户明确点击"记住了"才会移除
+      const wasAlreadyIncorrect = this.reviewProgress[incorrectKey] === true
+      this.reviewProgress[incorrectKey] = true
+      console.log(`[复习日志 ${timestamp}] 已标记为"没记住":`, { 
+        incorrectKey, 
+        value: this.reviewProgress[incorrectKey],
+        wasAlreadyIncorrect 
+      })
+      
+      // 同步更新 incorrectItems Set（用于内存中的快速访问）
+      const collectionKey = `${type}s`
       if (this.incorrectItems[collectionKey]) {
         this.incorrectItems[collectionKey].add(id)
+        console.log(`[复习日志 ${timestamp}] 已更新 incorrectItems Set:`, { 
+          collectionKey, 
+          size: this.incorrectItems[collectionKey].size 
+        })
       }
+      
+      // 立即保存到 localStorage 和云端以便持久化（永久保存）
+      console.log(`[复习日志 ${timestamp}] 开始保存到本地和云端...`)
+      await this.saveReviewProgressToLocal()
+      console.log(`[复习日志 ${timestamp}] ✅ 项目已添加到集中复习区（永久记忆体）:`, { type, id })
     },
     
     // 清除所有"没记住"的项目
-    clearIncorrectItems() {
+    async clearIncorrectItems() {
+      // 从 reviewProgress 中删除所有 incorrect_ 开头的键
+      Object.keys(this.reviewProgress).forEach(key => {
+        if (key.startsWith('incorrect_')) {
+          delete this.reviewProgress[key]
+        }
+      })
+      // 清空 incorrectItems Set
       this.incorrectItems.words.clear()
       this.incorrectItems.sentences.clear()
       this.incorrectItems.qa.clear()
+      // 保存到 localStorage 和云端
+      await this.saveReviewProgressToLocal()
+    },
+    
+    // 保存复习进度到 localStorage 和云端
+    async saveReviewProgressToLocal() {
+      const timestamp = new Date().toISOString()
+      const incorrectItemsCount = Object.keys(this.reviewProgress).filter(k => k.startsWith('incorrect_')).length
+      const totalItemsCount = Object.keys(this.reviewProgress).length
+      
+      console.log(`[保存日志 ${timestamp}] 💾 saveReviewProgressToLocal 开始:`, {
+        totalItems: totalItemsCount,
+        incorrectItems: incorrectItemsCount,
+        isOnline: this.isOnline
+      })
+      
+      try {
+        // 保存到 localStorage（如果可用）
+        try {
+          localStorage.setItem('reviewProgress', JSON.stringify(this.reviewProgress))
+          console.log(`[保存日志 ${timestamp}] ✅ 已保存到 localStorage:`, {
+            size: JSON.stringify(this.reviewProgress).length,
+            items: totalItemsCount
+          })
+        } catch (localStorageError) {
+          // localStorage 可能被禁用（如 Safari 无痕模式）
+          console.warn(`[保存日志 ${timestamp}] ⚠️ localStorage 不可用，跳过本地保存:`, {
+            error: localStorageError.message,
+            reason: '可能是 Safari 无痕模式或安全设置'
+          })
+        }
+        
+        // 如果在线，同步到云端
+        if (this.isOnline) {
+          console.log(`[保存日志 ${timestamp}] 🌐 开始同步到 Firebase 云端...`)
+          try {
+            const startTime = Date.now()
+            await dataService.saveReviewProgress(this.reviewProgress)
+            const duration = Date.now() - startTime
+            console.log(`[保存日志 ${timestamp}] ✅ 复习进度已同步到 Firebase 云端 (耗时: ${duration}ms):`, {
+              totalItems: totalItemsCount,
+              incorrectItems: incorrectItemsCount,
+              dataSize: JSON.stringify(this.reviewProgress).length
+            })
+          } catch (error) {
+            console.error(`[保存日志 ${timestamp}] ❌ 同步复习进度到 Firebase 云端失败:`, {
+              error: error.message,
+              stack: error.stack,
+              totalItems: totalItemsCount,
+              incorrectItems: incorrectItemsCount
+            })
+            // 即使云端同步失败，本地保存仍然成功
+          }
+        } else {
+          console.log(`[保存日志 ${timestamp}] ⚠️ 设备未在线，跳过云端同步`)
+        }
+      } catch (error) {
+        console.error(`[保存日志 ${timestamp}] ❌ 保存复习进度到本地存储失败:`, {
+          error: error.message,
+          stack: error.stack
+        })
+      }
+      
+      console.log(`[保存日志 ${timestamp}] 💾 saveReviewProgressToLocal 完成`)
+    },
+    
+    // 从 localStorage 加载复习进度
+    loadReviewProgressFromLocal() {
+      try {
+        // 检查 localStorage 是否可用
+        let saved = null
+        try {
+          saved = localStorage.getItem('reviewProgress')
+        } catch (localStorageError) {
+          // localStorage 可能被禁用（如 Safari 无痕模式）
+          console.warn('localStorage 不可用，跳过本地加载:', {
+            error: localStorageError.message,
+            reason: '可能是 Safari 无痕模式或安全设置，将完全依赖云端存储'
+          })
+          return
+        }
+        
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          
+          // 提取内存中现有的集中复习区数据（永久记忆体）- 可能是本次会话中新添加的
+          const existingIncorrectItems = {}
+          Object.keys(this.reviewProgress).forEach(key => {
+            if (key.startsWith('incorrect_')) {
+              existingIncorrectItems[key] = this.reviewProgress[key]
+            }
+          })
+          
+          // 合并复习进度：
+          // 1. 先加载本地存储的所有数据（包括集中复习区的永久数据）
+          // 2. 然后覆盖为内存中现有的集中复习区数据（如果有更新，优先保留内存中的）
+          this.reviewProgress = { 
+            ...parsed,  // 先加载本地存储的数据（包括集中复习区的永久数据）
+            ...existingIncorrectItems  // 然后覆盖为内存中现有的集中复习区数据（确保本次会话的新数据不丢失）
+          }
+          
+          console.log('从 localStorage 加载复习进度:', Object.keys(parsed).length, '条记录')
+          // 恢复 incorrectItems Set
+          this.restoreIncorrectItemsFromProgress()
+          console.log('恢复集中复习区数据（永久记忆体）:', {
+            words: this.incorrectItems.words.size,
+            sentences: this.incorrectItems.sentences.size,
+            qa: this.incorrectItems.qa.size
+          })
+        } else {
+          console.log('localStorage 中没有复习进度数据')
+        }
+      } catch (error) {
+        console.warn('从本地存储加载复习进度失败:', {
+          error: error.message,
+          stack: error.stack
+        })
+      }
+    },
+    
+    // 从云端同步复习进度（合并本地和云端数据，优先保留集中复习区数据）
+    async syncReviewProgressFromCloud() {
+      const timestamp = new Date().toISOString()
+      console.log(`[同步日志 ${timestamp}] 🔄 syncReviewProgressFromCloud 开始:`, { isOnline: this.isOnline })
+      
+      if (!this.isOnline) {
+        // 如果不在线，只从本地加载
+        console.log(`[同步日志 ${timestamp}] ⚠️ 设备未在线，只从本地加载`)
+        this.loadReviewProgressFromLocal()
+        return
+      }
+      
+      try {
+        // 1. 先加载本地数据
+        console.log(`[同步日志 ${timestamp}] 📂 步骤1: 加载本地数据...`)
+        const localBeforeCount = Object.keys(this.reviewProgress).length
+        this.loadReviewProgressFromLocal()
+        const localAfterCount = Object.keys(this.reviewProgress).length
+        console.log(`[同步日志 ${timestamp}] ✅ 本地数据加载完成:`, {
+          before: localBeforeCount,
+          after: localAfterCount,
+          localIncorrectItems: Object.keys(this.reviewProgress).filter(k => k.startsWith('incorrect_')).length
+        })
+        
+        // 2. 从云端加载数据
+        console.log(`[同步日志 ${timestamp}] 🌐 步骤2: 从 Firebase 云端加载数据...`)
+        const cloudStartTime = Date.now()
+        const cloudReviewProgress = await dataService.getReviewProgress()
+        const cloudDuration = Date.now() - cloudStartTime
+        const cloudCount = Object.keys(cloudReviewProgress).length
+        console.log(`[同步日志 ${timestamp}] ✅ 云端数据加载完成 (耗时: ${cloudDuration}ms):`, {
+          cloudItems: cloudCount,
+          cloudIncorrectItems: Object.keys(cloudReviewProgress).filter(k => k.startsWith('incorrect_')).length
+        })
+        
+        if (cloudCount > 0) {
+          // 3. 提取本地和云端的集中复习区数据（永久记忆体）
+          console.log(`[同步日志 ${timestamp}] 🔀 步骤3: 提取集中复习区数据...`)
+          const localIncorrectItems = {}
+          const cloudIncorrectItems = {}
+          
+          Object.keys(this.reviewProgress).forEach(key => {
+            if (key.startsWith('incorrect_')) {
+              localIncorrectItems[key] = this.reviewProgress[key]
+            }
+          })
+          
+          Object.keys(cloudReviewProgress).forEach(key => {
+            if (key.startsWith('incorrect_')) {
+              cloudIncorrectItems[key] = cloudReviewProgress[key]
+            }
+          })
+          
+          console.log(`[同步日志 ${timestamp}] 集中复习区数据统计:`, {
+            localIncorrect: Object.keys(localIncorrectItems).length,
+            cloudIncorrect: Object.keys(cloudIncorrectItems).length,
+            localKeys: Object.keys(localIncorrectItems).slice(0, 5), // 只显示前5个
+            cloudKeys: Object.keys(cloudIncorrectItems).slice(0, 5)
+          })
+          
+          // 4. 合并复习进度：
+          // - 先合并云端和本地的所有数据（云端优先，因为可能包含其他设备的数据）
+          // - 然后合并集中复习区数据（合并本地和云端，确保不丢失任何"没记住"的项目）
+          console.log(`[同步日志 ${timestamp}] 🔀 步骤4: 合并本地和云端数据...`)
+          const mergedIncorrectItems = {
+            ...cloudIncorrectItems,  // 先加载云端的集中复习区数据
+            ...localIncorrectItems   // 然后覆盖为本地的集中复习区数据（确保本次会话的新数据不丢失）
+          }
+          
+          const beforeMergeCount = Object.keys(this.reviewProgress).length
+          this.reviewProgress = {
+            ...cloudReviewProgress,  // 先加载云端的所有数据
+            ...this.reviewProgress,  // 然后覆盖为本地数据（确保本地更新不丢失）
+            ...mergedIncorrectItems  // 最后确保集中复习区数据完整（合并本地和云端）
+          }
+          const afterMergeCount = Object.keys(this.reviewProgress).length
+          
+          console.log(`[同步日志 ${timestamp}] ✅ 数据合并完成:`, {
+            beforeMerge: beforeMergeCount,
+            afterMerge: afterMergeCount,
+            mergedIncorrectItems: Object.keys(mergedIncorrectItems).length
+          })
+          
+          // 5. 保存合并后的数据到本地和云端
+          console.log(`[同步日志 ${timestamp}] 💾 步骤5: 保存合并后的数据...`)
+          await this.saveReviewProgressToLocal()
+          
+          // 6. 恢复 incorrectItems Set
+          console.log(`[同步日志 ${timestamp}] 🔄 步骤6: 恢复 incorrectItems Set...`)
+          this.restoreIncorrectItemsFromProgress()
+          console.log(`[同步日志 ${timestamp}] ✅ 合并后的集中复习区数据（永久记忆体）:`, {
+            words: this.incorrectItems.words.size,
+            sentences: this.incorrectItems.sentences.size,
+            qa: this.incorrectItems.qa.size,
+            total: this.incorrectItems.words.size + this.incorrectItems.sentences.size + this.incorrectItems.qa.size
+          })
+        } else {
+          // 云端没有数据，只使用本地数据
+          console.log(`[同步日志 ${timestamp}] ⚠️ 云端没有复习进度数据，使用本地数据`)
+          this.restoreIncorrectItemsFromProgress()
+          console.log(`[同步日志 ${timestamp}] ✅ 本地集中复习区数据:`, {
+            words: this.incorrectItems.words.size,
+            sentences: this.incorrectItems.sentences.size,
+            qa: this.incorrectItems.qa.size
+          })
+        }
+      } catch (error) {
+        console.error(`[同步日志 ${timestamp}] ❌ 从云端同步复习进度失败，使用本地数据:`, {
+          error: error.message,
+          stack: error.stack
+        })
+        // 即使云端同步失败，也恢复本地数据
+        this.restoreIncorrectItemsFromProgress()
+      }
+      
+      console.log(`[同步日志 ${timestamp}] 🔄 syncReviewProgressFromCloud 完成`)
+    },
+    
+    // 从 reviewProgress 恢复 incorrectItems Set
+    restoreIncorrectItemsFromProgress() {
+      this.incorrectItems.words.clear()
+      this.incorrectItems.sentences.clear()
+      this.incorrectItems.qa.clear()
+      
+      Object.keys(this.reviewProgress).forEach(key => {
+        if (key.startsWith('incorrect_word_')) {
+          const id = key.replace('incorrect_word_', '')
+          this.incorrectItems.words.add(id)
+        } else if (key.startsWith('incorrect_sentence_')) {
+          const id = key.replace('incorrect_sentence_', '')
+          this.incorrectItems.sentences.add(id)
+        } else if (key.startsWith('incorrect_qa_')) {
+          const id = key.replace('incorrect_qa_', '')
+          this.incorrectItems.qa.add(id)
+        }
+      })
     },
 
     // 测验历史

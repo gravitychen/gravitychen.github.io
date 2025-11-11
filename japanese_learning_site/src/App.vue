@@ -51,6 +51,11 @@
           <button @click="showAuth = true" class="nav-button auth-btn" title="设置">
             {{ dataStore.isOnline ? '⚙️' : '🔑' }}
           </button>
+          
+          <!-- 日志查看按钮 -->
+          <button @click="showLogs = !showLogs" class="nav-button log-btn" title="查看日志">
+            📋
+          </button>
         </div>
       </div>
     </nav>
@@ -63,6 +68,25 @@
     <div v-if="showAuth" class="auth-modal" @click="showAuth = false">
       <div class="auth-modal-content" @click.stop>
         <Auth @close="showAuth = false" />
+      </div>
+    </div>
+    
+    <!-- 日志显示面板 -->
+    <div v-if="showLogs" class="log-panel">
+      <div class="log-header">
+        <h3>📋 日志查看器</h3>
+        <div class="log-controls">
+          <button @click="clearLogs" class="log-btn-clear">清空</button>
+          <button @click="copyLogs" class="log-btn-copy">复制</button>
+          <button @click="showLogs = false" class="log-btn-close">关闭</button>
+        </div>
+      </div>
+      <div class="log-content" ref="logContent">
+        <div v-for="(log, index) in logs" :key="index" :class="['log-item', log.type]">
+          <span class="log-time">{{ log.time }}</span>
+          <span class="log-message">{{ log.message }}</span>
+        </div>
+        <div v-if="logs.length === 0" class="log-empty">暂无日志</div>
       </div>
     </div>
     
@@ -109,8 +133,12 @@ export default {
   setup() {
     const dataStore = useDataStore()
     const showAuth = ref(false)
+    const showLogs = ref(false)
     const syncTimeInterval = ref(null)
     const isLoggedIn = ref(false)
+    const logs = ref([])
+    const logContent = ref(null)
+    const maxLogs = 500 // 最多保存500条日志
     
     // 监听认证状态变化
     authService.onAuthStateChange((user) => {
@@ -275,6 +303,80 @@ export default {
       }
     }
 
+    // 拦截 console.log 并显示在页面上
+    const originalLog = console.log
+    const originalError = console.error
+    const originalWarn = console.warn
+    
+    console.log = (...args) => {
+      originalLog.apply(console, args)
+      addLog('log', formatLogMessage(args))
+    }
+    
+    console.error = (...args) => {
+      originalError.apply(console, args)
+      addLog('error', formatLogMessage(args))
+    }
+    
+    console.warn = (...args) => {
+      originalWarn.apply(console, args)
+      addLog('warn', formatLogMessage(args))
+    }
+    
+    const formatLogMessage = (args) => {
+      return args.map(arg => {
+        if (typeof arg === 'object' && arg !== null) {
+          try {
+            return JSON.stringify(arg, null, 2)
+          } catch (e) {
+            return String(arg)
+          }
+        }
+        return String(arg)
+      }).join(' ')
+    }
+    
+    const addLog = (type, message) => {
+      const time = new Date().toLocaleTimeString('zh-CN')
+      logs.value.push({
+        type,
+        message,
+        time
+      })
+      
+      // 限制日志数量
+      if (logs.value.length > maxLogs) {
+        logs.value.shift()
+      }
+      
+      // 自动滚动到底部
+      if (showLogs.value && logContent.value) {
+        setTimeout(() => {
+          logContent.value.scrollTop = logContent.value.scrollHeight
+        }, 100)
+      }
+    }
+    
+    const clearLogs = () => {
+      logs.value = []
+    }
+    
+    const copyLogs = () => {
+      const logText = logs.value.map(log => `[${log.time}] ${log.message}`).join('\n')
+      navigator.clipboard.writeText(logText).then(() => {
+        alert('日志已复制到剪贴板！')
+      }).catch(() => {
+        // 如果复制失败，使用备用方法
+        const textarea = document.createElement('textarea')
+        textarea.value = logText
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        alert('日志已复制到剪贴板！')
+      })
+    }
+    
     // 组件挂载时的优化
     onMounted(() => {
       // 初始化检查登录状态
@@ -293,18 +395,27 @@ export default {
       if (syncTimeInterval.value) {
         clearInterval(syncTimeInterval.value)
       }
+      // 恢复原始的 console 方法
+      console.log = originalLog
+      console.error = originalError
+      console.warn = originalWarn
     })
 
     return {
       dataStore,
       showAuth,
+      showLogs,
+      logs,
+      logContent,
       currentUserId,
       deviceId,
       isUserLoggedIn,
       toggleLanguage,
       switchLanguage,
       checkDuplicates,
-      formatSyncTime
+      formatSyncTime,
+      clearLogs,
+      copyLogs
     }
   }
 }
@@ -693,6 +804,143 @@ export default {
   .user-id, .device-id {
     font-size: 0.6rem;
     padding: 1px 4px;
+  }
+}
+
+/* 日志面板样式 */
+.log-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  color: white;
+}
+
+.log-header {
+  padding: 1rem;
+  background: rgba(102, 126, 234, 0.9);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.log-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.log-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.log-btn-clear,
+.log-btn-copy,
+.log-btn-close {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.log-btn-clear:hover,
+.log-btn-copy:hover,
+.log-btn-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.log-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.log-item {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  word-break: break-all;
+}
+
+.log-item.error {
+  background: rgba(244, 67, 54, 0.2);
+  border-left: 3px solid #f44336;
+}
+
+.log-item.warn {
+  background: rgba(255, 152, 0, 0.2);
+  border-left: 3px solid #ff9800;
+}
+
+.log-item.log {
+  background: rgba(76, 175, 80, 0.1);
+  border-left: 3px solid #4caf50;
+}
+
+.log-time {
+  color: rgba(255, 255, 255, 0.6);
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.log-message {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.log-empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 2rem;
+}
+
+.log-btn {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196F3;
+}
+
+.log-btn:hover:not(:disabled) {
+  background: rgba(33, 150, 243, 0.4);
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .log-header {
+    padding: 0.8rem;
+    flex-wrap: wrap;
+  }
+  
+  .log-header h3 {
+    font-size: 1rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .log-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .log-content {
+    font-size: 0.75rem;
+    padding: 0.8rem;
+  }
+  
+  .log-item {
+    padding: 0.4rem;
   }
 }
 </style>
