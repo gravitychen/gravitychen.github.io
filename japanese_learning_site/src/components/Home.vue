@@ -155,7 +155,10 @@ export default {
     // 导出数据
     const exportData = () => {
       const data = dataStore.exportData()
-      const blob = new Blob([data], { type: 'application/json' })
+      // 使用 TextEncoder 确保 UTF-8 编码，解决 iPad Chrome 上的字符编码问题
+      const encoder = new TextEncoder()
+      const utf8Data = encoder.encode(data)
+      const blob = new Blob([utf8Data], { type: 'application/json;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

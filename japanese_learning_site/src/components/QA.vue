@@ -7,37 +7,6 @@
       </button>
     </div>
 
-    <!-- 编辑问答表单 -->
-    <div v-if="showEditForm" class="edit-form">
-      <h3>编辑问答</h3>
-      <div class="form-group">
-        <label>问题：</label>
-        <textarea 
-          v-model="editingQA.question" 
-          placeholder="请输入问题"
-          class="form-textarea"
-          rows="3"
-        ></textarea>
-      </div>
-      <div class="form-group">
-        <label>答案：</label>
-        <textarea 
-          v-model="editingQA.answer" 
-          placeholder="请输入答案（支持长文本，会自动换行）"
-          class="form-textarea answer-textarea"
-          rows="4"
-        ></textarea>
-      </div>
-      <div class="form-actions">
-        <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
-          保存
-        </button>
-        <button @click="cancelEdit" class="cancel-btn">
-          取消
-        </button>
-      </div>
-    </div>
-
     <!-- 添加问答表单 -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-group">
@@ -77,28 +46,62 @@
       </div>
 
       <div v-else class="qa-item" v-for="qa in dataStore.qa" :key="qa.id">
-        <div class="qa-content">
-          <div class="qa-question">
-            <span class="qa-label">Q:</span>
-            <div class="question-content">{{ qa.question }}</div>
+        <!-- 编辑表单 - 显示在对应的问答项内部 -->
+        <div v-if="showEditForm && editingQA.id === qa.id" class="edit-form-inline">
+          <h3>编辑问答</h3>
+          <div class="form-group">
+            <label>问题：</label>
+            <textarea 
+              v-model="editingQA.question" 
+              placeholder="请输入问题"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
           </div>
-          <div class="qa-answer">
-            <span class="qa-label">A:</span>
-            <div class="answer-content">{{ qa.answer }}</div>
+          <div class="form-group">
+            <label>答案：</label>
+            <textarea 
+              v-model="editingQA.answer" 
+              placeholder="请输入答案（支持长文本，会自动换行）"
+              class="form-textarea answer-textarea"
+              rows="4"
+            ></textarea>
           </div>
-          <div class="qa-date">{{ formatDate(qa.createdAt) }}</div>
+          <div class="form-actions">
+            <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
+              保存
+            </button>
+            <button @click="cancelEdit" class="cancel-btn">
+              取消
+            </button>
+          </div>
         </div>
-        <div class="qa-actions">
-          <button @click="playAudio(qa)" class="speech-btn" :disabled="isPlaying">
-            {{ isPlaying ? '🔊' : '🔊' }}
-          </button>
-          <button @click="editQA(qa)" class="edit-btn">
-            ✏️
-          </button>
-          <button @click="deleteQA(qa.id)" class="delete-btn">
-            🗑️
-          </button>
-        </div>
+        
+        <!-- 正常显示内容 -->
+        <template v-else>
+          <div class="qa-content">
+            <div class="qa-question">
+              <span class="qa-label">Q:</span>
+              <div class="question-content">{{ qa.question }}</div>
+            </div>
+            <div class="qa-answer">
+              <span class="qa-label">A:</span>
+              <div class="answer-content">{{ qa.answer }}</div>
+            </div>
+            <div class="qa-date">{{ formatDate(qa.createdAt) }}</div>
+          </div>
+          <div class="qa-actions">
+            <button @click="playAudio(qa)" class="speech-btn" :disabled="isPlaying">
+              {{ isPlaying ? '🔊' : '🔊' }}
+            </button>
+            <button @click="editQA(qa)" class="edit-btn">
+              ✏️
+            </button>
+            <button @click="deleteQA(qa.id)" class="delete-btn">
+              🗑️
+            </button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -327,8 +330,7 @@ export default {
   transform: translateY(-2px);
 }
 
-.add-form,
-.edit-form {
+.add-form {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
@@ -336,7 +338,16 @@ export default {
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.edit-form h3 {
+.edit-form-inline {
+  width: 100%;
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.edit-form-inline h3 {
   color: #333;
   margin-bottom: 1rem;
   font-size: 1.2rem;

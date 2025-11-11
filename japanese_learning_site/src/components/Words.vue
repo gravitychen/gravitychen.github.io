@@ -7,37 +7,6 @@
       </button>
     </div>
 
-    <!-- 编辑单词表单 -->
-    <div v-if="showEditForm" class="edit-form">
-      <h3>编辑单词</h3>
-      <div class="form-group">
-        <label>{{ dataStore.currentLanguageName }}单词：</label>
-        <input 
-          v-model="editingWord.japanese" 
-          type="text" 
-          :placeholder="`请输入${dataStore.currentLanguageName}单词`"
-          class="form-input"
-        />
-      </div>
-      <div class="form-group">
-        <label>中文翻译：</label>
-        <input 
-          v-model="editingWord.chinese" 
-          type="text" 
-          placeholder="请输入中文翻译"
-          class="form-input"
-        />
-      </div>
-      <div class="form-actions">
-        <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
-          保存
-        </button>
-        <button @click="cancelEdit" class="cancel-btn">
-          取消
-        </button>
-      </div>
-    </div>
-
     <!-- 添加单词表单 -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-group">
@@ -77,28 +46,62 @@
       </div>
 
       <div v-else class="word-item" v-for="word in dataStore.words" :key="word.id">
-        <div class="word-content">
-          <div class="word-main">
-            <div v-if="dataStore.showJapanese" class="word-japanese">{{ word.japanese }}</div>
-            <div v-else class="word-chinese">{{ word.chinese }}</div>
+        <!-- 编辑表单 - 显示在对应的单词项内部 -->
+        <div v-if="showEditForm && editingWord.id === word.id" class="edit-form-inline">
+          <h3>编辑单词</h3>
+          <div class="form-group">
+            <label>{{ dataStore.currentLanguageName }}单词：</label>
+            <input 
+              v-model="editingWord.japanese" 
+              type="text" 
+              :placeholder="`请输入${dataStore.currentLanguageName}单词`"
+              class="form-input"
+            />
           </div>
-          <div class="word-secondary">
-            <div v-if="dataStore.showJapanese" class="word-chinese">{{ word.chinese }}</div>
-            <div v-else class="word-japanese">{{ word.japanese }}</div>
+          <div class="form-group">
+            <label>中文翻译：</label>
+            <input 
+              v-model="editingWord.chinese" 
+              type="text" 
+              placeholder="请输入中文翻译"
+              class="form-input"
+            />
           </div>
-          <div class="word-date">{{ formatDate(word.createdAt) }}</div>
+          <div class="form-actions">
+            <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
+              保存
+            </button>
+            <button @click="cancelEdit" class="cancel-btn">
+              取消
+            </button>
+          </div>
         </div>
-        <div class="word-actions">
-          <button @click="playAudio(word)" class="speech-btn" :disabled="isPlaying">
-            {{ isPlaying ? '🔊' : '🔊' }}
-          </button>
-          <button @click="editWord(word)" class="edit-btn">
-            ✏️
-          </button>
-          <button @click="deleteWord(word.id)" class="delete-btn">
-            🗑️
-          </button>
-        </div>
+        
+        <!-- 正常显示内容 -->
+        <template v-else>
+          <div class="word-content">
+            <div class="word-main">
+              <div v-if="dataStore.showJapanese" class="word-japanese">{{ word.japanese }}</div>
+              <div v-else class="word-chinese">{{ word.chinese }}</div>
+            </div>
+            <div class="word-secondary">
+              <div v-if="dataStore.showJapanese" class="word-chinese">{{ word.chinese }}</div>
+              <div v-else class="word-japanese">{{ word.japanese }}</div>
+            </div>
+            <div class="word-date">{{ formatDate(word.createdAt) }}</div>
+          </div>
+          <div class="word-actions">
+            <button @click="playAudio(word)" class="speech-btn" :disabled="isPlaying">
+              {{ isPlaying ? '🔊' : '🔊' }}
+            </button>
+            <button @click="editWord(word)" class="edit-btn">
+              ✏️
+            </button>
+            <button @click="deleteWord(word.id)" class="delete-btn">
+              🗑️
+            </button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -327,8 +330,7 @@ export default {
   transform: translateY(-2px);
 }
 
-.add-form,
-.edit-form {
+.add-form {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
@@ -336,7 +338,16 @@ export default {
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.edit-form h3 {
+.edit-form-inline {
+  width: 100%;
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.edit-form-inline h3 {
   color: #333;
   margin-bottom: 1rem;
   font-size: 1.2rem;

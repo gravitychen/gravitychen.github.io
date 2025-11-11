@@ -623,8 +623,12 @@ export const useDataStore = defineStore('data', {
         
         const jsonData = JSON.stringify(currentData, null, 2)
         
-        // 创建下载链接
-        const blob = new Blob([jsonData], { type: 'application/json' })
+        // 使用 TextEncoder 确保 UTF-8 编码，解决 iPad Chrome 上的字符编码问题
+        const encoder = new TextEncoder()
+        const utf8Data = encoder.encode(jsonData)
+        
+        // 创建下载链接，明确指定 UTF-8 编码
+        const blob = new Blob([utf8Data], { type: 'application/json;charset=utf-8' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url

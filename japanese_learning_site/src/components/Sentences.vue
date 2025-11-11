@@ -7,46 +7,6 @@
       </button>
     </div>
 
-    <!-- 编辑句子表单 -->
-    <div v-if="showEditForm" class="edit-form">
-      <h3>编辑句子</h3>
-      <div class="form-group">
-        <label>{{ dataStore.currentLanguageName }}句子：</label>
-        <textarea 
-          v-model="editingSentence.japanese" 
-          :placeholder="`请输入${dataStore.currentLanguageName}句子`"
-          class="form-textarea"
-          rows="3"
-        ></textarea>
-      </div>
-      <div class="form-group">
-        <label>对应内在感觉：</label>
-        <textarea 
-          v-model="editingSentence.chinese" 
-          placeholder="请输入对应的中文翻译 or 内在感觉描述"
-          class="form-textarea"
-          rows="3"
-        ></textarea>
-      </div>
-      <div class="form-group">
-        <label>使用情境：</label>
-        <textarea 
-          v-model="editingSentence.context" 
-          placeholder="请描述这个句子的使用场景，比如：与朋友对话时、正式场合、购物时等"
-          class="form-textarea"
-          rows="3"
-        ></textarea>
-      </div>
-      <div class="form-actions">
-        <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
-          保存
-        </button>
-        <button @click="cancelEdit" class="cancel-btn">
-          取消
-        </button>
-      </div>
-    </div>
-
     <!-- 添加句子表单 -->
     <div v-if="showAddForm" class="add-form">
       <div class="form-group">
@@ -95,31 +55,74 @@
       </div>
 
       <div v-else class="sentence-item" v-for="sentence in dataStore.sentences" :key="sentence.id">
-        <div class="sentence-content">
-          <div class="sentence-main">
-            <div v-if="dataStore.showJapanese" class="sentence-japanese">{{ sentence.japanese }}</div>
-            <div v-else class="sentence-chinese">{{ sentence.chinese }}</div>
+        <!-- 编辑表单 - 显示在对应的句子项内部 -->
+        <div v-if="showEditForm && editingSentence.id === sentence.id" class="edit-form-inline">
+          <h3>编辑句子</h3>
+          <div class="form-group">
+            <label>{{ dataStore.currentLanguageName }}句子：</label>
+            <textarea 
+              v-model="editingSentence.japanese" 
+              :placeholder="`请输入${dataStore.currentLanguageName}句子`"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
           </div>
-          <div class="sentence-secondary">
-            <div v-if="dataStore.showJapanese" class="sentence-chinese">{{ sentence.chinese }}</div>
-            <div v-else class="sentence-japanese">{{ sentence.japanese }}</div>
+          <div class="form-group">
+            <label>对应内在感觉：</label>
+            <textarea 
+              v-model="editingSentence.chinese" 
+              placeholder="请输入对应的中文翻译 or 内在感觉描述"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
           </div>
-          <div v-if="sentence.context" class="sentence-context">
-            <span class="context-label">使用情境：</span>{{ sentence.context }}
+          <div class="form-group">
+            <label>使用情境：</label>
+            <textarea 
+              v-model="editingSentence.context" 
+              placeholder="请描述这个句子的使用场景，比如：与朋友对话时、正式场合、购物时等"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
           </div>
-          <div class="sentence-date">{{ formatDate(sentence.createdAt) }}</div>
+          <div class="form-actions">
+            <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
+              保存
+            </button>
+            <button @click="cancelEdit" class="cancel-btn">
+              取消
+            </button>
+          </div>
         </div>
-        <div class="sentence-actions">
-          <button @click="playAudio(sentence)" class="speech-btn" :disabled="isPlaying">
-            {{ isPlaying ? '🔊' : '🔊' }}
-          </button>
-          <button @click="editSentence(sentence)" class="edit-btn">
-            ✏️
-          </button>
-          <button @click="deleteSentence(sentence.id)" class="delete-btn">
-            🗑️
-          </button>
-        </div>
+        
+        <!-- 正常显示内容 -->
+        <template v-else>
+          <div class="sentence-content">
+            <div class="sentence-main">
+              <div v-if="dataStore.showJapanese" class="sentence-japanese">{{ sentence.japanese }}</div>
+              <div v-else class="sentence-chinese">{{ sentence.chinese }}</div>
+            </div>
+            <div class="sentence-secondary">
+              <div v-if="dataStore.showJapanese" class="sentence-chinese">{{ sentence.chinese }}</div>
+              <div v-else class="sentence-japanese">{{ sentence.japanese }}</div>
+            </div>
+            <div v-if="sentence.context" class="sentence-context">
+              <span class="context-label">使用情境：</span>{{ sentence.context }}
+            </div>
+            <div class="sentence-date">{{ formatDate(sentence.createdAt) }}</div>
+          </div>
+          <div class="sentence-actions">
+            <button @click="playAudio(sentence)" class="speech-btn" :disabled="isPlaying">
+              {{ isPlaying ? '🔊' : '🔊' }}
+            </button>
+            <button @click="editSentence(sentence)" class="edit-btn">
+              ✏️
+            </button>
+            <button @click="deleteSentence(sentence.id)" class="delete-btn">
+              🗑️
+            </button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -353,8 +356,7 @@ export default {
   transform: translateY(-2px);
 }
 
-.add-form,
-.edit-form {
+.add-form {
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
@@ -362,7 +364,16 @@ export default {
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.edit-form h3 {
+.edit-form-inline {
+  width: 100%;
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.edit-form-inline h3 {
   color: #333;
   margin-bottom: 1rem;
   font-size: 1.2rem;
