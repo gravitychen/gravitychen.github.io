@@ -366,6 +366,8 @@ export default {
 
 .edit-form-inline {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   background: #f8f9fa;
   padding: 1.5rem;
   border-radius: 12px;
@@ -392,6 +394,8 @@ export default {
 
 .form-textarea {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 0.8rem;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
