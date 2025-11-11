@@ -23,6 +23,39 @@
       </div>
     </div>
 
+    <!-- 集中复习区 -->
+    <div v-if="dataStore.totalIncorrectItems > 0" class="incorrect-review-section">
+      <h3>🎯 集中复习 - 没记住的项目</h3>
+      <div class="incorrect-stats">
+        <div class="incorrect-stat-item">
+          <span class="stat-number">{{ dataStore.incorrectWords.length }}</span>
+          <span class="stat-label">个单词</span>
+        </div>
+        <div class="incorrect-stat-item">
+          <span class="stat-number">{{ dataStore.incorrectSentences.length }}</span>
+          <span class="stat-label">个句子</span>
+        </div>
+        <div class="incorrect-stat-item">
+          <span class="stat-number">{{ dataStore.incorrectQA.length }}</span>
+          <span class="stat-label">个问答</span>
+        </div>
+      </div>
+      <button 
+        @click="startIncorrectReview" 
+        class="incorrect-review-btn"
+      >
+        <span class="btn-icon">🔥</span>
+        <span class="btn-text">开始集中复习</span>
+        <span class="btn-count">({{ dataStore.totalIncorrectItems }})</span>
+      </button>
+      <button 
+        @click="clearIncorrectItems" 
+        class="clear-incorrect-btn"
+      >
+        清除所有标记
+      </button>
+    </div>
+
     <!-- 复习内容选择 -->
     <div class="review-options">
       <h3>选择复习内容</h3>
@@ -68,26 +101,61 @@
         </div>
       </div>
 
+      <!-- 记忆模式切换按钮（问答复习和集中复习不显示） -->
+      <div v-if="reviewType !== 'qa' && !isIncorrectReview" class="memory-mode-switch">
+        <button 
+          @click="memoryMode = 'dictionary'" 
+          :class="['mode-btn', { active: memoryMode === 'dictionary' }]"
+        >
+          📖 词典记忆
+        </button>
+        <button 
+          @click="memoryMode = 'scenario'" 
+          :class="['mode-btn', { active: memoryMode === 'scenario' }]"
+        >
+          🎬 情景记忆
+        </button>
+      </div>
+
       <div class="review-content">
-        <!-- 句子复习：三步渐进式显示 -->
-        <template v-if="reviewType === 'sentences'">
+        <!-- 情景记忆模式：三步渐进式显示（适用于单词和句子，不适用于问答和集中复习） -->
+        <template v-if="memoryMode === 'scenario' && reviewType !== 'qa' && !isIncorrectReview">
           <div class="review-item">
             <!-- 步骤1：显示中文 + 强调内在感觉 -->
             <div v-if="sentenceStep === 1" class="sentence-step">
               <div class="step-label">步骤 1/3</div>
-              <div class="item-chinese">{{ getCurrentItem().chinese }}</div>
+              <div class="item-chinese">
+                <template v-if="reviewType === 'words'">
+                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese }}
+                </template>
+              </div>
               <div class="step-hint highlight-hint">
-                💭 重要提示：不要只看中文文字！<br>
-                要主动联想到对应的内在感觉，用心感受这个句子传达的情感或意图。
+                💭 重要提示：不要只看文字！<br>
+                <template v-if="reviewType === 'words'">
+                  要主动联想到这个单词对应的内在感觉和含义，用心感受这个单词传达的意思。
+                </template>
+                <template v-else>
+                  要主动联想到对应的内在感觉，用心感受这个句子传达的情感或意图。
+                </template>
               </div>
             </div>
 
-            <!-- 步骤2：显示使用场景 + 强调身临其境（不显示中文） -->
+            <!-- 步骤2：显示使用场景 + 强调身临其境 -->
             <div v-if="sentenceStep === 2" class="sentence-step">
               <div class="step-label">步骤 2/3</div>
               <div class="item-context">
                 <div class="context-label">📍 使用情境：</div>
-                <div class="context-content">{{ getCurrentItem().context || '（未设置使用情境）' }}</div>
+                <div class="context-content">
+                  <template v-if="reviewType === 'words'">
+                    {{ getCurrentItem().context || '（未设置使用情境，可以想象这个单词在什么场景下使用）' }}
+                  </template>
+                  <template v-else>
+                    {{ getCurrentItem().context || '（未设置使用情境）' }}
+                  </template>
+                </div>
               </div>
               <div class="step-hint highlight-hint">
                 🎬 重要提示：要主动去联想这个场景！<br>
@@ -95,17 +163,38 @@
               </div>
             </div>
 
-            <!-- 步骤3：显示日语答案 -->
+            <!-- 步骤3：显示答案 -->
             <div v-if="sentenceStep === 3" class="sentence-step">
               <div class="step-label">步骤 3/3</div>
-              <div class="item-chinese">{{ getCurrentItem().chinese }}</div>
+              <div class="item-chinese">
+                <template v-if="reviewType === 'words'">
+                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese }}
+                </template>
+              </div>
               <div class="item-context" v-if="getCurrentItem().context">
                 <div class="context-label">📍 使用情境：</div>
                 <div class="context-content">{{ getCurrentItem().context }}</div>
               </div>
               <div class="item-answer">
-                <div class="answer-label">🇯🇵 {{ dataStore.currentLanguageName }}句子：</div>
-                <div class="answer-content">{{ getCurrentItem().japanese }}</div>
+                <div class="answer-label">
+                  <template v-if="reviewType === 'words'">
+                    {{ dataStore.showJapanese ? '🇯🇵 ' + dataStore.currentLanguageName + '单词：' : '🇨🇳 中文翻译：' }}
+                  </template>
+                  <template v-else>
+                    🇯🇵 {{ dataStore.currentLanguageName }}句子：
+                  </template>
+                </div>
+                <div class="answer-content">
+                  <template v-if="reviewType === 'words'">
+                    {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                  </template>
+                  <template v-else>
+                    {{ getCurrentItem().japanese }}
+                  </template>
+                </div>
               </div>
             </div>
           </div>
@@ -124,7 +213,7 @@
               @click="sentenceStep = 3" 
               class="show-answer-btn"
             >
-              下一步：查看{{ dataStore.currentLanguageName }}句子
+              下一步：查看{{ reviewType === 'words' ? (dataStore.showJapanese ? dataStore.currentLanguageName + '单词' : '中文翻译') : (dataStore.currentLanguageName + '句子') }}
             </button>
             
             <div v-if="sentenceStep === 3" class="answer-actions">
@@ -138,23 +227,59 @@
           </div>
         </template>
 
-        <!-- 单词和问答复习：原有逻辑 -->
+        <!-- 词典记忆模式：简单显示答案（适用于单词、句子、问答和集中复习） -->
         <template v-else>
           <div class="review-item">
             <div class="item-question">
-              <template v-if="reviewType === 'words'">
-                {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+              <template v-if="isIncorrectReview">
+                <!-- 集中复习模式：根据项目类型显示 -->
+                <template v-if="getCurrentItem()._type === 'word'">
+                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else-if="getCurrentItem()._type === 'sentence'">
+                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().japanese || getCurrentItem().question }}
+                </template>
               </template>
               <template v-else>
-                {{ getCurrentItem().japanese || getCurrentItem().question }}
+                <!-- 普通复习模式 -->
+                <template v-if="reviewType === 'words'">
+                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else-if="reviewType === 'sentences'">
+                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().japanese || getCurrentItem().question }}
+                </template>
               </template>
             </div>
             <div v-if="showAnswer" class="item-answer">
-              <template v-if="reviewType === 'words'">
-                {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+              <template v-if="isIncorrectReview">
+                <!-- 集中复习模式：根据项目类型显示 -->
+                <template v-if="getCurrentItem()._type === 'word'">
+                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else-if="getCurrentItem()._type === 'sentence'">
+                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
+                </template>
               </template>
               <template v-else>
-                {{ getCurrentItem().chinese || getCurrentItem().answer }}
+                <!-- 普通复习模式 -->
+                <template v-if="reviewType === 'words'">
+                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else-if="reviewType === 'sentences'">
+                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
+                </template>
               </template>
             </div>
           </div>
@@ -226,6 +351,13 @@ export default {
     const reviewCompleted = ref(false)
     // 句子复习的步骤状态（1: 中文+提示, 2: 场景+提示, 3: 日语答案）
     const sentenceStep = ref(1)
+    // 记忆模式：'dictionary'（词典记忆）或 'scenario'（情景记忆）
+    const memoryMode = ref('dictionary')
+    
+    // 判断是否是集中复习模式
+    const isIncorrectReview = computed(() => {
+      return reviewItems.value.length > 0 && reviewItems.value[0]?._type !== undefined
+    })
 
     const totalToReview = computed(() => {
       return dataStore.wordsToReview.length + 
@@ -254,8 +386,52 @@ export default {
       showAnswer.value = false
       correctCount.value = 0
       reviewCompleted.value = false
-      // 句子复习重置到第一步
+      // 根据复习类型设置默认模式
+      if (type === 'words') {
+        memoryMode.value = 'dictionary' // 单词默认词典记忆
+      } else if (type === 'sentences') {
+        memoryMode.value = 'scenario' // 句子默认情景记忆
+      } else if (type === 'qa') {
+        memoryMode.value = 'dictionary' // 问答强制使用词典记忆
+      }
+      // 情景记忆模式重置到第一步
       sentenceStep.value = 1
+    }
+
+    // 开始集中复习（所有"没记住"的项目）
+    const startIncorrectReview = () => {
+      // 合并所有"没记住"的项目
+      const allIncorrect = [
+        ...dataStore.incorrectWords.map(w => ({ ...w, _type: 'word' })),
+        ...dataStore.incorrectSentences.map(s => ({ ...s, _type: 'sentence' })),
+        ...dataStore.incorrectQA.map(q => ({ ...q, _type: 'qa' }))
+      ]
+      
+      if (allIncorrect.length === 0) {
+        alert('没有需要集中复习的内容！')
+        return
+      }
+
+      // 打乱顺序
+      allIncorrect.sort(() => Math.random() - 0.5)
+      
+      reviewItems.value = allIncorrect
+      reviewMode.value = true
+      currentIndex.value = 0
+      showAnswer.value = false
+      correctCount.value = 0
+      reviewCompleted.value = false
+      // 集中复习默认使用词典记忆模式
+      memoryMode.value = 'dictionary'
+      sentenceStep.value = 1
+    }
+
+    // 清除所有"没记住"的标记
+    const clearIncorrectItems = () => {
+      if (confirm('确定要清除所有"没记住"的标记吗？')) {
+        dataStore.clearIncorrectItems()
+        alert('已清除所有标记')
+      }
     }
 
     const getCurrentItem = () => {
@@ -263,6 +439,10 @@ export default {
     }
 
     const getReviewTitle = () => {
+      // 如果是集中复习模式
+      if (reviewItems.value.length > 0 && reviewItems.value[0]._type) {
+        return '集中复习 - 没记住的项目'
+      }
       const titles = {
         words: '单词复习',
         sentences: '句子复习',
@@ -271,13 +451,41 @@ export default {
       return titles[reviewType.value] || '复习'
     }
 
+    // 获取当前项目的类型（用于集中复习）
+    const getCurrentItemType = () => {
+      const item = getCurrentItem()
+      if (item._type) {
+        return item._type + 's' // 'word' -> 'words', 'sentence' -> 'sentences'
+      }
+      return reviewType.value
+    }
+
     const markCorrect = () => {
       correctCount.value++
-      dataStore.markAsReviewed(reviewType.value.slice(0, -1), getCurrentItem().id)
+      const item = getCurrentItem()
+      // 判断是集中复习还是普通复习
+      if (item._type) {
+        // 集中复习模式
+        const itemType = item._type // 'word', 'sentence', 'qa'
+        dataStore.markAsReviewed(itemType, item.id)
+      } else {
+        // 普通复习模式
+        dataStore.markAsReviewed(reviewType.value.slice(0, -1), item.id)
+      }
       nextItem()
     }
 
     const markIncorrect = () => {
+      const item = getCurrentItem()
+      // 判断是集中复习还是普通复习
+      if (item._type) {
+        // 集中复习模式：保持标记为"没记住"
+        // 不需要再次标记，因为已经在列表中
+      } else {
+        // 普通复习模式：将当前项目标记为"没记住"
+        const itemType = reviewType.value.slice(0, -1) // 'words' -> 'word', 'sentences' -> 'sentence'
+        dataStore.markAsIncorrect(itemType, item.id)
+      }
       nextItem()
     }
 
@@ -285,8 +493,8 @@ export default {
       if (currentIndex.value < reviewItems.value.length - 1) {
         currentIndex.value++
         showAnswer.value = false
-        // 句子复习重置到第一步
-        if (reviewType.value === 'sentences') {
+        // 情景记忆模式重置到第一步
+        if (memoryMode.value === 'scenario') {
           sentenceStep.value = 1
         }
       } else {
@@ -322,9 +530,13 @@ export default {
       totalToReview,
       completedCount,
       sentenceStep,
+      memoryMode,
       startReview,
+      startIncorrectReview,
+      clearIncorrectItems,
       getCurrentItem,
       getReviewTitle,
+      getCurrentItemType,
       markCorrect,
       markIncorrect,
       exitReview,
@@ -427,6 +639,85 @@ export default {
   cursor: not-allowed;
 }
 
+/* 集中复习区域样式 */
+.incorrect-review-section {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.incorrect-review-section h3 {
+  color: white;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+}
+
+.incorrect-stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  justify-content: space-around;
+}
+
+.incorrect-stat-item {
+  text-align: center;
+  color: white;
+}
+
+.incorrect-stat-item .stat-number {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+}
+
+.incorrect-stat-item .stat-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.incorrect-review-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.2rem;
+  background: white;
+  color: #ff6b6b;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 0.8rem;
+}
+
+.incorrect-review-btn:hover {
+  background: #fff5f5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+.clear-incorrect-btn {
+  width: 100%;
+  padding: 0.8rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.clear-incorrect-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .btn-icon {
   font-size: 1.5rem;
   margin-right: 1rem;
@@ -453,9 +744,43 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.memory-mode-switch {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  color: #666;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.mode-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+  transform: translateY(-2px);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .review-header h3 {

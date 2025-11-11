@@ -14,6 +14,12 @@ export const useDataStore = defineStore('data', {
     qa: [],
     reviewProgress: {},
     quizHistory: [],
+    // 存储"没记住"的项目ID
+    incorrectItems: {
+      words: new Set(),
+      sentences: new Set(),
+      qa: new Set()
+    },
     showJapanese: true,
     isOnline: false,
     syncInProgress: false,
@@ -77,6 +83,26 @@ export const useDataStore = defineStore('data', {
     currentLanguageName: (state) => {
       const lang = state.supportedLanguages.find(lang => lang.code === state.currentLanguage)
       return lang ? lang.name : '未知语言'
+    },
+    
+    // 获取"没记住"的项目列表
+    incorrectWords: (state) => {
+      return state.words.filter(word => state.incorrectItems.words.has(word.id))
+    },
+    
+    incorrectSentences: (state) => {
+      return state.sentences.filter(sentence => state.incorrectItems.sentences.has(sentence.id))
+    },
+    
+    incorrectQA: (state) => {
+      return state.qa.filter(qa => state.incorrectItems.qa.has(qa.id))
+    },
+    
+    // 获取所有"没记住"项目的总数
+    totalIncorrectItems: (state) => {
+      return state.incorrectItems.words.size + 
+             state.incorrectItems.sentences.size + 
+             state.incorrectItems.qa.size
     },
     
   },
@@ -295,7 +321,8 @@ export const useDataStore = defineStore('data', {
 
       const newWord = {
         japanese: word.japanese,
-        chinese: word.chinese
+        chinese: word.chinese,
+        context: word.context || '' // 添加使用情境字段
       }
       
       try {
@@ -470,7 +497,26 @@ export const useDataStore = defineStore('data', {
     markAsReviewed(type, id) {
       const key = `${type}_${id}`
       this.reviewProgress[key] = Date.now()
+      // 如果该项目在"没记住"列表中，移除它
+      if (this.incorrectItems[`${type}s`] && this.incorrectItems[`${type}s`].has(id)) {
+        this.incorrectItems[`${type}s`].delete(id)
+      }
       // 复习进度通过云端同步
+    },
+    
+    // 标记为"没记住"
+    markAsIncorrect(type, id) {
+      const collectionKey = `${type}s` // words, sentences, qa
+      if (this.incorrectItems[collectionKey]) {
+        this.incorrectItems[collectionKey].add(id)
+      }
+    },
+    
+    // 清除所有"没记住"的项目
+    clearIncorrectItems() {
+      this.incorrectItems.words.clear()
+      this.incorrectItems.sentences.clear()
+      this.incorrectItems.qa.clear()
     },
 
     // 测验历史
@@ -605,6 +651,46 @@ export const useDataStore = defineStore('data', {
       }
     },
 
+    // 迁移现有单词，添加空的情景字段
+    async migrateWordsAddContext() {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能迁移数据')
+      }
+
+      console.log('开始迁移单词，添加情景字段...')
+      try {
+        let migratedCount = 0
+        let skippedCount = 0
+
+        for (const word of this.words) {
+          // 如果单词没有 context 字段，或者 context 为 undefined/null，则添加空字符串
+          if (word.context === undefined || word.context === null) {
+            try {
+              await dataService.updateData('words', word.id, {
+                context: ''
+              }, this.currentLanguage)
+              migratedCount++
+              console.log(`单词迁移成功: ${word.japanese} (ID: ${word.id})`)
+            } catch (error) {
+              console.warn(`单词迁移失败: ${word.japanese}`, error)
+            }
+          } else {
+            skippedCount++
+          }
+        }
+
+        console.log(`迁移完成: ${migratedCount} 个单词已更新, ${skippedCount} 个单词已跳过`)
+        return {
+          migrated: migratedCount,
+          skipped: skippedCount,
+          total: this.words.length
+        }
+      } catch (error) {
+        console.error('迁移失败:', error)
+        throw error
+      }
+    },
+
     // 导出当前数据为JSON（用于手动迁移）
     async exportCurrentData() {
       if (!this.isOnline) {
@@ -708,7 +794,8 @@ export const useDataStore = defineStore('data', {
               if (!this.isWordDuplicate(word)) {
                 await dataService.addData('words', {
                   japanese: word.japanese,
-                  chinese: word.chinese
+                  chinese: word.chinese,
+                  context: word.context || ''
                 }, this.currentLanguage)
                 console.log('单词导入成功:', word.japanese)
               } else {

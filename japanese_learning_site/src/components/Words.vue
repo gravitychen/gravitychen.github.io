@@ -27,6 +27,15 @@
           class="form-input"
         />
       </div>
+      <div class="form-group">
+        <label>使用情境：</label>
+        <textarea 
+          v-model="newWord.context" 
+          placeholder="请描述这个单词的使用场景，比如：与朋友对话时、正式场合、购物时等（可选）"
+          class="form-textarea"
+          rows="3"
+        ></textarea>
+      </div>
       <div class="form-actions">
         <button @click="addWord" class="save-btn" :disabled="!canSave">
           保存
@@ -67,6 +76,15 @@
               class="form-input"
             />
           </div>
+          <div class="form-group">
+            <label>使用情境：</label>
+            <textarea 
+              v-model="editingWord.context" 
+              placeholder="请描述这个单词的使用场景，比如：与朋友对话时、正式场合、购物时等（可选）"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
+          </div>
           <div class="form-actions">
             <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
               保存
@@ -87,6 +105,9 @@
             <div class="word-secondary">
               <div v-if="dataStore.showJapanese" class="word-chinese">{{ word.chinese }}</div>
               <div v-else class="word-japanese">{{ word.japanese }}</div>
+            </div>
+            <div v-if="word.context" class="word-context">
+              <span class="context-label">使用情境：</span>{{ word.context }}
             </div>
             <div class="word-date">{{ formatDate(word.createdAt) }}</div>
           </div>
@@ -127,12 +148,14 @@ export default {
     const showEditForm = ref(false)
     const newWord = ref({
       japanese: '',
-      chinese: ''
+      chinese: '',
+      context: ''
     })
     const editingWord = ref({
       id: '',
       japanese: '',
-      chinese: ''
+      chinese: '',
+      context: ''
     })
     const isPlaying = ref(false)
 
@@ -148,15 +171,16 @@ export default {
       if (canSave.value) {
         dataStore.addWord({
           japanese: newWord.value.japanese.trim(),
-          chinese: newWord.value.chinese.trim()
+          chinese: newWord.value.chinese.trim(),
+          context: newWord.value.context.trim()
         })
-        newWord.value = { japanese: '', chinese: '' }
+        newWord.value = { japanese: '', chinese: '', context: '' }
         showAddForm.value = false
       }
     }
 
     const cancelAdd = () => {
-      newWord.value = { japanese: '', chinese: '' }
+      newWord.value = { japanese: '', chinese: '', context: '' }
       showAddForm.value = false
     }
 
@@ -164,7 +188,8 @@ export default {
       editingWord.value = {
         id: word.id,
         japanese: word.japanese,
-        chinese: word.chinese
+        chinese: word.chinese,
+        context: word.context || ''
       }
       showEditForm.value = true
       showAddForm.value = false
@@ -175,10 +200,11 @@ export default {
         try {
           await dataStore.updateWord(editingWord.value.id, {
             japanese: editingWord.value.japanese.trim(),
-            chinese: editingWord.value.chinese.trim()
+            chinese: editingWord.value.chinese.trim(),
+            context: editingWord.value.context.trim()
           })
           showEditForm.value = false
-          editingWord.value = { id: '', japanese: '', chinese: '' }
+          editingWord.value = { id: '', japanese: '', chinese: '', context: '' }
         } catch (error) {
           alert(`更新失败：${error.message}`)
         }
@@ -187,7 +213,7 @@ export default {
 
     const cancelEdit = () => {
       showEditForm.value = false
-      editingWord.value = { id: '', japanese: '', chinese: '' }
+      editingWord.value = { id: '', japanese: '', chinese: '', context: '' }
     }
 
     const playAudio = async (word) => {
@@ -378,6 +404,22 @@ export default {
   border-color: #667eea;
 }
 
+.form-textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
 .form-actions {
   display: flex;
   gap: 1rem;
@@ -442,7 +484,7 @@ export default {
 .word-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   background: white;
   padding: 1.5rem;
   border-radius: 12px;
@@ -472,6 +514,22 @@ export default {
   color: #666;
   margin-bottom: 0.3rem;
   font-size: 1rem;
+}
+
+.word-context {
+  background: #f8f9fa;
+  padding: 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #555;
+}
+
+.context-label {
+  font-weight: 600;
+  color: #667eea;
+  margin-right: 0.5rem;
 }
 
 .word-date {
