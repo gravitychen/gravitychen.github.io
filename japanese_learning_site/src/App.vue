@@ -2,7 +2,17 @@
   <div id="app">
     <!-- 页面刷新时的提示弹窗 -->
     <div v-if="showRefreshQuestion" class="refresh-question-modal" @click="showRefreshQuestion = false">
-      <div class="refresh-question-content" @click.stop>
+      <!-- 修改前
+      <div class="refresh-question-content" @click.stop>  <!- 内容 -></div>
+      问题：@click.stop 阻止了事件冒泡，点击内容区域不会触发父元素的点击事件。
+      修改后
+      <div class="refresh-question-content">  <!- 内容 -></div>
+      原理：
+      移除了 @click.stop
+      点击内容区域时，事件会冒泡到父元素（.refresh-question-modal）
+      父元素的 @click="showRefreshQuestion = false" 会执行，关闭弹窗 -->
+
+      <div class="refresh-question-content">
         <h3>你为什么要学习 "内在的另外一种表达" ？</h3>
         <p class="question-hint">点击屏幕任何地方关闭</p>
       </div>
@@ -700,6 +710,8 @@ export default {
   padding: 20px;
   animation: fadeIn 0.3s ease;
   cursor: pointer;
+  /* 确保弹窗不会影响页面其他内容的显示 */
+  pointer-events: auto;
 }
 
 @keyframes fadeIn {
@@ -720,7 +732,8 @@ export default {
   text-align: center;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
-  cursor: default;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 @keyframes slideUp {

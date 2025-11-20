@@ -40,22 +40,6 @@
       </div>
     </div>
 
-    <!-- 自定义确认对话框 -->
-    <div v-if="showConfirmDialog" class="confirm-dialog" @click="handleDialogBackgroundClick">
-      <div class="confirm-dialog-content" @click.stop>
-        <h4>{{ confirmDialogTitle }}</h4>
-        <p class="confirm-dialog-message">{{ confirmDialogMessage }}</p>
-        <div class="confirm-dialog-actions">
-          <button @click="handleConfirmCancel" class="confirm-cancel-btn">
-            {{ confirmCancelText }}
-          </button>
-          <button @click="handleConfirmOk" class="confirm-ok-btn">
-            {{ confirmOkText }}
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- 添加语言对话框 -->
     <div v-if="showAddLanguageDialog" class="add-language-dialog" @click="showAddLanguageDialog = false">
       <div class="dialog-content" @click.stop>
@@ -314,43 +298,8 @@ export default {
       dataStore.switchLanguage(languageCode)
     }
 
-    // 自定义确认对话框函数
-    const showCustomConfirm = (title, message, okText = '确定', cancelText = '取消') => {
-      return new Promise((resolve) => {
-        confirmDialogTitle.value = title
-        confirmDialogMessage.value = message
-        confirmOkText.value = okText
-        confirmCancelText.value = cancelText
-        showConfirmDialog.value = true
-        
-        confirmCallback.value = (result) => {
-          showConfirmDialog.value = false
-          resolve(result)
-        }
-      })
-    }
-
-    // 处理确认对话框的确定按钮
-    const handleConfirmOk = () => {
-      if (confirmCallback.value) {
-        confirmCallback.value(true)
-      }
-    }
-
-    // 处理确认对话框的取消按钮
-    const handleConfirmCancel = () => {
-      if (confirmCallback.value) {
-        confirmCallback.value(false)
-      }
-    }
-
-    // 处理点击对话框背景
-    const handleDialogBackgroundClick = () => {
-      // 点击背景不关闭，必须点击按钮
-    }
-
-    // 确认删除语言（三次确认，使用自定义对话框）
-    const confirmDeleteLanguage = async (lang) => {
+    // 确认删除语言（三次确认）
+    const confirmDeleteLanguage = (lang) => {
       // 检查是否至少保留一个语言
       if (dataStore.supportedLanguages.length <= 1) {
         alert('至少需要保留一个语言！')
@@ -361,8 +310,7 @@ export default {
       const message1 = `⚠️ 第一次确认\n\n确定要删除语言大区 "${lang.name}" (${lang.flag}) 吗？\n\n` +
         `删除后该语言的所有数据（单词、句子、问答）将无法访问！`
       
-      const result1 = await showCustomConfirm('第一次确认', message1, '是的，我要删除', '取消')
-      if (!result1) {
+      if (!confirm(message1)) {
         return
       }
 
@@ -372,8 +320,7 @@ export default {
         `该语言的所有学习数据将被永久删除！\n` +
         `如果当前正在使用该语言，将自动切换到其他语言。`
       
-      const result2 = await showCustomConfirm('第二次确认', message2, '我确定要删除', '我再想想')
-      if (!result2) {
+      if (!confirm(message2)) {
         return
       }
 
@@ -384,8 +331,7 @@ export default {
         `⚠️ 警告：删除后无法恢复！\n` +
         `所有该语言的数据将永久丢失！`
       
-      const result3 = await showCustomConfirm('最后一次确认', message3, '永久删除', '取消删除')
-      if (!result3) {
+      if (!confirm(message3)) {
         return
       }
 
@@ -419,15 +365,7 @@ export default {
       addLanguage,
       cancelAddLanguage,
       confirmDeleteLanguage,
-      switchToLanguage,
-      showConfirmDialog,
-      confirmDialogTitle,
-      confirmDialogMessage,
-      confirmOkText,
-      confirmCancelText,
-      handleConfirmOk,
-      handleConfirmCancel,
-      handleDialogBackgroundClick
+      switchToLanguage
     }
   }
 }
@@ -1083,104 +1021,5 @@ export default {
 
 .add-language-dialog .cancel-btn:hover {
   background: #5a6268;
-}
-
-/* 自定义确认对话框样式 */
-.confirm-dialog {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 20px;
-  animation: fadeIn 0.3s ease;
-}
-
-.confirm-dialog-content {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease;
-}
-
-.confirm-dialog-content h4 {
-  margin-bottom: 1rem;
-  color: #333;
-  font-size: 1.3rem;
-  font-weight: 600;
-}
-
-.confirm-dialog-message {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  white-space: pre-line;
-  font-size: 1rem;
-}
-
-.confirm-dialog-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.confirm-ok-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  font-size: 1rem;
-}
-
-.confirm-ok-btn:hover {
-  background: #c82333;
-}
-
-.confirm-cancel-btn {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  font-size: 1rem;
-}
-
-.confirm-cancel-btn:hover {
-  background: #5a6268;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 </style>
