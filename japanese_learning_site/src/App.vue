@@ -1,10 +1,18 @@
 <template>
   <div id="app">
+    <!-- 页面刷新时的提示弹窗 -->
+    <div v-if="showRefreshQuestion" class="refresh-question-modal" @click="showRefreshQuestion = false">
+      <div class="refresh-question-content" @click.stop>
+        <h3>你为什么要学习 "内在的另外一种表达" ？</h3>
+        <p class="question-hint">点击屏幕任何地方关闭</p>
+      </div>
+    </div>
+
     <nav class="navbar">
       <div class="nav-brand">
-        <h1 v-if="!isUserLoggedIn">为了别人，学内在映射表达 log out</h1>
+        <h1 v-if="!isUserLoggedIn">把内在外在表达出来 log out</h1>
         <div v-else>
-          <h1>为了别人，学内在映射表达 log in</h1>
+          <h1>把内在外在表达出来</h1>
           <div class="user-id-display">
             <div class="device-info">
               <span class="device-label">设备ID:</span>
@@ -134,6 +142,7 @@ export default {
     const dataStore = useDataStore()
     const showAuth = ref(false)
     const showLogs = ref(false)
+    const showRefreshQuestion = ref(false)
     const syncTimeInterval = ref(null)
     const isLoggedIn = ref(false)
     const logs = ref([])
@@ -384,6 +393,9 @@ export default {
       isLoggedIn.value = !!(user && user.uid)
       console.log('组件挂载时登录状态:', isLoggedIn.value ? '已登录' : '未登录')
       
+      // 页面刷新时显示问题弹窗
+      showRefreshQuestion.value = true
+      
       // 设置定时器更新同步时间显示
       syncTimeInterval.value = setInterval(() => {
         // 触发响应式更新
@@ -405,6 +417,7 @@ export default {
       dataStore,
       showAuth,
       showLogs,
+      showRefreshQuestion,
       logs,
       logContent,
       currentUserId,
@@ -670,6 +683,70 @@ export default {
 .nav-label {
   font-size: 0.7rem;
   font-weight: 500;
+}
+
+/* 页面刷新时的提示弹窗样式 */
+.refresh-question-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+  cursor: pointer;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.refresh-question-content {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+  cursor: default;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.refresh-question-content h3 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  font-weight: 600;
+}
+
+.question-hint {
+  color: #999;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  font-style: italic;
 }
 
 /* 认证弹窗样式 */

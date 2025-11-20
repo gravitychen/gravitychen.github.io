@@ -1,3 +1,6 @@
+<!-- 理解 Vue 模板结构
+Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码顺序决定显示顺序。 -->
+
 <template>
   <div class="review">
     <div class="header">
@@ -7,6 +10,245 @@
       </div>
     </div>
 
+    <!-- 复习模式 -->
+    <div v-if="reviewMode" class="review-mode">
+      <div class="review-header">
+        <h3>{{ getReviewTitle() }}</h3>
+        <div class="review-progress">
+          {{ currentIndex + 1 }}/{{ reviewItems.length }}
+        </div>
+      </div>
+
+      <!-- 记忆模式切换按钮（问答复习和集中复习不显示） -->
+      <div v-if="reviewType !== 'qa' && !isIncorrectReview" class="memory-mode-switch">
+        <button 
+          @click="memoryMode = 'dictionary'" 
+          :class="['mode-btn', { active: memoryMode === 'dictionary' }]"
+        >
+          📖 词典记忆
+        </button>
+        <button 
+          @click="memoryMode = 'scenario'" 
+          :class="['mode-btn', { active: memoryMode === 'scenario' }]"
+        >
+          🎬 情景记忆
+        </button>
+      </div>
+
+      <div class="review-content">
+        <!-- 情景记忆模式：三步渐进式显示（适用于单词和句子，不适用于问答和集中复习） -->
+        <template v-if="memoryMode === 'scenario' && reviewType !== 'qa' && !isIncorrectReview">
+          <div class="review-item">
+            <!-- 步骤1：显示中文 + 强调内在感觉 -->
+            <div v-if="sentenceStep === 1" class="sentence-step">
+              <div class="step-label">步骤 1/3</div>
+              <div class="item-chinese">
+                <template v-if="reviewType === 'words'">
+                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese }}
+                </template>
+              </div>
+              <div class="step-hint highlight-hint">
+                💭 重要提示：不要只看文字！<br>
+                <template v-if="reviewType === 'words'">
+                  要主动联想到这个单词对应的内在感觉和含义，用心感受这个单词传达的意思。
+                </template>
+                <template v-else>
+                  要主动联想到对应的内在感觉，用心感受这个句子传达的情感或意图。
+                </template>
+              </div>
+            </div>
+
+            <!-- 步骤2：显示使用场景 + 强调身临其境 -->
+            <div v-if="sentenceStep === 2" class="sentence-step">
+              <div class="step-label">步骤 2/3</div>
+              <div class="item-context">
+                <div class="context-label">📍 使用情境：</div>
+                <div class="context-content">
+                  <template v-if="reviewType === 'words'">
+                    {{ getCurrentItem().context || '（未设置使用情境，可以想象这个单词在什么场景下使用）' }}
+                  </template>
+                  <template v-else>
+                    {{ getCurrentItem().context || '（未设置使用情境）' }}
+                  </template>
+                </div>
+              </div>
+              <div class="step-hint highlight-hint">
+                🎬 重要提示：要主动去联想这个场景！<br>
+                要有身临其境感，想象自己在这个情境中，体会当时的感觉和情绪。
+              </div>
+            </div>
+
+            <!-- 步骤3：显示答案 -->
+            <div v-if="sentenceStep === 3" class="sentence-step">
+              <div class="step-label">步骤 3/3</div>
+              <div class="item-chinese">
+                <template v-if="reviewType === 'words'">
+                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese }}
+                </template>
+              </div>
+              <div class="item-context" v-if="getCurrentItem().context">
+                <div class="context-label">📍 使用情境：</div>
+                <div class="context-content">{{ getCurrentItem().context }}</div>
+              </div>
+              <div class="item-answer">
+                <div class="answer-label">
+                  <template v-if="reviewType === 'words'">
+                    {{ showJapanese ? '🇯🇵 ' + currentLanguageName + '单词：' : '🇨🇳 中文翻译：' }}
+                  </template>
+                  <template v-else>
+                    🇯🇵 {{ currentLanguageName }}句子：
+                  </template>
+                </div>
+                <div class="answer-content">
+                  <template v-if="reviewType === 'words'">
+                    {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                  </template>
+                  <template v-else>
+                    {{ getCurrentItem().japanese }}
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="review-actions">
+            <button 
+              v-if="sentenceStep === 1" 
+              @click="sentenceStep = 2" 
+              class="show-answer-btn"
+            >
+              下一步：查看使用情境
+            </button>
+            
+            <button 
+              v-if="sentenceStep === 2" 
+              @click="sentenceStep = 3" 
+              class="show-answer-btn"
+            >
+              下一步：查看{{ reviewType === 'words' ? (showJapanese ? currentLanguageName + '单词' : '中文翻译') : (currentLanguageName + '句子') }}
+            </button>
+            
+            <div v-if="sentenceStep === 3" class="answer-actions">
+              <button @click="markCorrect" class="correct-btn">
+                ✅ 记住了
+              </button>
+              <button @click="markIncorrect" class="incorrect-btn">
+                ❌ 没记住
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- 词典记忆模式：简单显示答案（适用于单词、句子、问答和集中复习） -->
+        <template v-else>
+          <div class="review-item">
+            <div class="item-question">
+              <template v-if="isIncorrectReview">
+                <!-- 集中复习模式：根据项目类型显示 -->
+                <template v-if="getCurrentItem()._type === 'word'">
+                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else-if="getCurrentItem()._type === 'sentence'">
+                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().japanese || getCurrentItem().question }}
+                </template>
+              </template>
+              <template v-else>
+                <!-- 普通复习模式 -->
+                <template v-if="reviewType === 'words'">
+                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else-if="reviewType === 'sentences'">
+                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().japanese || getCurrentItem().question }}
+                </template>
+              </template>
+            </div>
+            <div v-if="showAnswer" class="item-answer">
+              <template v-if="isIncorrectReview">
+                <!-- 集中复习模式：根据项目类型显示 -->
+                <template v-if="getCurrentItem()._type === 'word'">
+                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else-if="getCurrentItem()._type === 'sentence'">
+                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
+                </template>
+              </template>
+              <template v-else>
+                <!-- 普通复习模式 -->
+                <template v-if="reviewType === 'words'">
+                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+                </template>
+                <template v-else-if="reviewType === 'sentences'">
+                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+                </template>
+                <template v-else>
+                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
+                </template>
+              </template>
+            </div>
+          </div>
+
+          <div class="review-actions">
+            <button 
+              v-if="!showAnswer" 
+              @click="showAnswer = true" 
+              class="show-answer-btn"
+            >
+              显示答案
+            </button>
+            
+            <div v-if="showAnswer" class="answer-actions">
+              <button @click="markCorrect" class="correct-btn">
+                ✅ 记住了
+              </button>
+              <button @click="markIncorrect" class="incorrect-btn">
+                ❌ 没记住
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div class="review-controls">
+        <button @click="exitReview" class="exit-btn">
+          退出复习
+        </button>
+      </div>
+    </div>
+
+    <!-- 复习完成 -->
+    <div v-if="reviewCompleted" class="review-completed">
+      <div class="completed-icon">🎉</div>
+      <h3>复习完成！</h3>
+      <p>恭喜你完成了今天的复习任务</p>
+      <div class="completed-stats">
+        <div class="completed-stat">
+          <span class="stat-label">复习项目：</span>
+          <span class="stat-value">{{ reviewItems.length }}</span>
+        </div>
+        <div class="completed-stat">
+          <span class="stat-label">正确率：</span>
+          <span class="stat-value">{{ Math.round((correctCount / reviewItems.length) * 100) }}%</span>
+        </div>
+      </div>
+      <button @click="resetReview" class="restart-btn">
+        重新开始
+      </button>
+    </div>
 
     <!-- 集中复习区 -->
     <div v-if="dataStore.totalIncorrectItems > 0" class="incorrect-review-section">
@@ -76,246 +318,6 @@
         </button>
       </div>
     </div>
-
-    <!-- 复习模式 -->
-    <div v-if="reviewMode" class="review-mode">
-      <div class="review-header">
-        <h3>{{ getReviewTitle() }}</h3>
-        <div class="review-progress">
-          {{ currentIndex + 1 }}/{{ reviewItems.length }}
-        </div>
-      </div>
-
-      <!-- 记忆模式切换按钮（问答复习和集中复习不显示） -->
-      <div v-if="reviewType !== 'qa' && !isIncorrectReview" class="memory-mode-switch">
-        <button 
-          @click="memoryMode = 'dictionary'" 
-          :class="['mode-btn', { active: memoryMode === 'dictionary' }]"
-        >
-          📖 词典记忆
-        </button>
-        <button 
-          @click="memoryMode = 'scenario'" 
-          :class="['mode-btn', { active: memoryMode === 'scenario' }]"
-        >
-          🎬 情景记忆
-        </button>
-      </div>
-
-      <div class="review-content">
-        <!-- 情景记忆模式：三步渐进式显示（适用于单词和句子，不适用于问答和集中复习） -->
-        <template v-if="memoryMode === 'scenario' && reviewType !== 'qa' && !isIncorrectReview">
-          <div class="review-item">
-            <!-- 步骤1：显示中文 + 强调内在感觉 -->
-            <div v-if="sentenceStep === 1" class="sentence-step">
-              <div class="step-label">步骤 1/3</div>
-              <div class="item-chinese">
-                <template v-if="reviewType === 'words'">
-                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().chinese }}
-                </template>
-              </div>
-              <div class="step-hint highlight-hint">
-                💭 重要提示：不要只看文字！<br>
-                <template v-if="reviewType === 'words'">
-                  要主动联想到这个单词对应的内在感觉和含义，用心感受这个单词传达的意思。
-                </template>
-                <template v-else>
-                  要主动联想到对应的内在感觉，用心感受这个句子传达的情感或意图。
-                </template>
-              </div>
-            </div>
-
-            <!-- 步骤2：显示使用场景 + 强调身临其境 -->
-            <div v-if="sentenceStep === 2" class="sentence-step">
-              <div class="step-label">步骤 2/3</div>
-              <div class="item-context">
-                <div class="context-label">📍 使用情境：</div>
-                <div class="context-content">
-                  <template v-if="reviewType === 'words'">
-                    {{ getCurrentItem().context || '（未设置使用情境，可以想象这个单词在什么场景下使用）' }}
-                  </template>
-                  <template v-else>
-                    {{ getCurrentItem().context || '（未设置使用情境）' }}
-                  </template>
-                </div>
-              </div>
-              <div class="step-hint highlight-hint">
-                🎬 重要提示：要主动去联想这个场景！<br>
-                要有身临其境感，想象自己在这个情境中，体会当时的感觉和情绪。
-              </div>
-            </div>
-
-            <!-- 步骤3：显示答案 -->
-            <div v-if="sentenceStep === 3" class="sentence-step">
-              <div class="step-label">步骤 3/3</div>
-              <div class="item-chinese">
-                <template v-if="reviewType === 'words'">
-                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().chinese }}
-                </template>
-              </div>
-              <div class="item-context" v-if="getCurrentItem().context">
-                <div class="context-label">📍 使用情境：</div>
-                <div class="context-content">{{ getCurrentItem().context }}</div>
-              </div>
-              <div class="item-answer">
-                <div class="answer-label">
-                  <template v-if="reviewType === 'words'">
-                    {{ dataStore.showJapanese ? '🇯🇵 ' + dataStore.currentLanguageName + '单词：' : '🇨🇳 中文翻译：' }}
-                  </template>
-                  <template v-else>
-                    🇯🇵 {{ dataStore.currentLanguageName }}句子：
-                  </template>
-                </div>
-                <div class="answer-content">
-                  <template v-if="reviewType === 'words'">
-                    {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                  </template>
-                  <template v-else>
-                    {{ getCurrentItem().japanese }}
-                  </template>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="review-actions">
-            <button 
-              v-if="sentenceStep === 1" 
-              @click="sentenceStep = 2" 
-              class="show-answer-btn"
-            >
-              下一步：查看使用情境
-            </button>
-            
-            <button 
-              v-if="sentenceStep === 2" 
-              @click="sentenceStep = 3" 
-              class="show-answer-btn"
-            >
-              下一步：查看{{ reviewType === 'words' ? (dataStore.showJapanese ? dataStore.currentLanguageName + '单词' : '中文翻译') : (dataStore.currentLanguageName + '句子') }}
-            </button>
-            
-            <div v-if="sentenceStep === 3" class="answer-actions">
-              <button @click="markCorrect" class="correct-btn">
-                ✅ 记住了
-              </button>
-              <button @click="markIncorrect" class="incorrect-btn">
-                ❌ 没记住
-              </button>
-            </div>
-          </div>
-        </template>
-
-        <!-- 词典记忆模式：简单显示答案（适用于单词、句子、问答和集中复习） -->
-        <template v-else>
-          <div class="review-item">
-            <div class="item-question">
-              <template v-if="isIncorrectReview">
-                <!-- 集中复习模式：根据项目类型显示 -->
-                <template v-if="getCurrentItem()._type === 'word'">
-                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else-if="getCurrentItem()._type === 'sentence'">
-                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().japanese || getCurrentItem().question }}
-                </template>
-              </template>
-              <template v-else>
-                <!-- 普通复习模式 -->
-                <template v-if="reviewType === 'words'">
-                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else-if="reviewType === 'sentences'">
-                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().japanese || getCurrentItem().question }}
-                </template>
-              </template>
-            </div>
-            <div v-if="showAnswer" class="item-answer">
-              <template v-if="isIncorrectReview">
-                <!-- 集中复习模式：根据项目类型显示 -->
-                <template v-if="getCurrentItem()._type === 'word'">
-                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else-if="getCurrentItem()._type === 'sentence'">
-                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
-                </template>
-              </template>
-              <template v-else>
-                <!-- 普通复习模式 -->
-                <template v-if="reviewType === 'words'">
-                  {{ dataStore.showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else-if="reviewType === 'sentences'">
-                  {{ dataStore.showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
-                </template>
-              </template>
-            </div>
-          </div>
-
-          <div class="review-actions">
-            <button 
-              v-if="!showAnswer" 
-              @click="showAnswer = true" 
-              class="show-answer-btn"
-            >
-              显示答案
-            </button>
-            
-            <div v-if="showAnswer" class="answer-actions">
-              <button @click="markCorrect" class="correct-btn">
-                ✅ 记住了
-              </button>
-              <button @click="markIncorrect" class="incorrect-btn">
-                ❌ 没记住
-              </button>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <div class="review-controls">
-        <button @click="exitReview" class="exit-btn">
-          退出复习
-        </button>
-      </div>
-    </div>
-
-    <!-- 复习完成 -->
-    <div v-if="reviewCompleted" class="review-completed">
-      <div class="completed-icon">🎉</div>
-      <h3>复习完成！</h3>
-      <p>恭喜你完成了今天的复习任务</p>
-      <div class="completed-stats">
-        <div class="completed-stat">
-          <span class="stat-label">复习项目：</span>
-          <span class="stat-value">{{ reviewItems.length }}</span>
-        </div>
-        <div class="completed-stat">
-          <span class="stat-label">正确率：</span>
-          <span class="stat-value">{{ Math.round((correctCount / reviewItems.length) * 100) }}%</span>
-        </div>
-      </div>
-      <button @click="resetReview" class="restart-btn">
-        重新开始
-      </button>
-    </div>
   </div>
 </template>
 
@@ -323,10 +325,25 @@
 import { ref, computed, onMounted } from 'vue'
 import { useDataStore } from '../stores/dataStore'
 
+// Vue 的 ref 是什么？
+// 简单理解: ref 是 Vue 3 中用来创建响应式数据的工具。当数据改变时，界面会自动更新。
+// 为什么需要 ref？
+// Vue 需要知道哪些数据会变化，才能自动更新界面。用 ref() 包装后，Vue 会追踪这些数据。
+// ❌ 普通变量 - Vue 不知道它变了
+// let count = 0
+// count = 1  // 界面不会更新
+// // ✅ ref - Vue 知道它变了
+// const count = ref(0)
+// count.value = 1  // 界面会自动更新！
+import { storeToRefs } from 'pinia'
+
 export default {
   name: 'Review',
   setup() {
     const dataStore = useDataStore()
+    // 使用 storeToRefs 确保响应式追踪
+    const { showJapanese, currentLanguageName } = storeToRefs(dataStore)
+    
     const reviewMode = ref(false)
     const reviewType = ref('')
     const reviewItems = ref([])
@@ -528,6 +545,8 @@ export default {
 
     return {
       dataStore,
+      showJapanese, // 添加响应式的 showJapanese
+      currentLanguageName, // 添加响应式的 currentLanguageName
       reviewMode,
       reviewType,
       reviewItems,

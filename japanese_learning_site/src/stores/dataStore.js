@@ -1,3 +1,4 @@
+// Store 状态就像一个全局的“数据仓库”，存放整个应用需要共享的数据。
 import { defineStore } from 'pinia'
 import dataService from '../firebase/dataService.js'
 import authService from '../firebase/authService.js'
@@ -32,7 +33,47 @@ export const useDataStore = defineStore('data', {
       { code: 'en', name: '英语', flag: '🇺🇸' },
       { code: 'hi', name: '印地语', flag: '🇮🇳' },
       { code: 'ko', name: '韩语', flag: '🇰🇷' }
-    ]
+    ],
+    // 语言代码到语音代码的映射表（支持世界前40%常用语言）
+    languageToSpeechMap: {
+      'zh': 'zh-CN',  // 中文
+      'en': 'en-US',  // 英语
+      'hi': 'hi-IN',  // 印地语
+      'es': 'es-ES',  // 西班牙语
+      'ar': 'ar-SA',  // 阿拉伯语
+      'bn': 'bn-BD',  // 孟加拉语
+      'fr': 'fr-FR',  // 法语
+      'ru': 'ru-RU',  // 俄语
+      'pt': 'pt-BR',  // 葡萄牙语
+      'ja': 'ja-JP',  // 日语
+      'de': 'de-DE',  // 德语
+      'ko': 'ko-KR',  // 韩语
+      'it': 'it-IT',  // 意大利语
+      'tr': 'tr-TR',  // 土耳其语
+      'vi': 'vi-VN',  // 越南语
+      'pl': 'pl-PL',  // 波兰语
+      'nl': 'nl-NL',  // 荷兰语
+      'th': 'th-TH',  // 泰语
+      'id': 'id-ID',  // 印尼语
+      'uk': 'uk-UA',  // 乌克兰语
+      'cs': 'cs-CZ',  // 捷克语
+      'ro': 'ro-RO',  // 罗马尼亚语
+      'el': 'el-GR',  // 希腊语
+      'hu': 'hu-HU',  // 匈牙利语
+      'sv': 'sv-SE',  // 瑞典语
+      'da': 'da-DK',  // 丹麦语
+      'fi': 'fi-FI',  // 芬兰语
+      'no': 'nb-NO',  // 挪威语
+      'he': 'he-IL',  // 希伯来语
+      'sk': 'sk-SK',  // 斯洛伐克语
+      'hr': 'hr-HR',  // 克罗地亚语
+      'bg': 'bg-BG',  // 保加利亚语
+      'sr': 'sr-RS',  // 塞尔维亚语
+      'sl': 'sl-SI',  // 斯洛文尼亚语
+      'et': 'et-EE',  // 爱沙尼亚语
+      'lv': 'lv-LV',  // 拉脱维亚语
+      'lt': 'lt-LT'   // 立陶宛语
+    }
   }),
 
   getters: {
@@ -118,6 +159,11 @@ export const useDataStore = defineStore('data', {
       return wordsCount + sentencesCount + qaCount
     },
     
+    // 根据语言代码获取语音代码
+    getSpeechCode: (state) => (languageCode) => {
+      return state.languageToSpeechMap[languageCode] || 'zh-CN'
+    },
+    
   },
 
   actions: {
@@ -146,7 +192,9 @@ export const useDataStore = defineStore('data', {
 
     // 初始化云端同步
     async initializeCloudSync() {
-      // 首先从 localStorage 加载复习进度（包括集中复习区的数据）
+      // 首先从 localStorage 加载语言列表
+      this.loadLanguagesFromLocal()
+      // 然后从 localStorage 加载复习进度（包括集中复习区的数据）
       this.loadReviewProgressFromLocal()
       
       // 设置认证状态监听器
@@ -917,6 +965,79 @@ export const useDataStore = defineStore('data', {
     toggleLanguage() {
       this.showJapanese = !this.showJapanese
       // 语言设置通过云端同步
+    },
+
+    // 添加新语言
+    addLanguage(language) {
+      // 检查语言代码是否已存在
+      if (this.supportedLanguages.some(lang => lang.code === language.code)) {
+        throw new Error(`语言代码 "${language.code}" 已存在`)
+      }
+      
+      // 添加新语言
+      this.supportedLanguages.push({
+        code: language.code,
+        name: language.name,
+        flag: language.flag || '🌐'
+      })
+      
+      // 保存到 localStorage
+      this.saveLanguagesToLocal()
+      
+      console.log('添加新语言:', language)
+    },
+
+    // 删除语言
+    removeLanguage(languageCode) {
+      // 检查是否是当前使用的语言
+      if (this.currentLanguage === languageCode) {
+        // 如果删除的是当前语言，切换到第一个可用语言
+        const remainingLanguages = this.supportedLanguages.filter(lang => lang.code !== languageCode)
+        if (remainingLanguages.length > 0) {
+          this.currentLanguage = remainingLanguages[0].code
+          console.log('已切换到语言:', remainingLanguages[0].code)
+        }
+      }
+      
+      // 检查是否至少保留一个语言
+      if (this.supportedLanguages.length <= 1) {
+        throw new Error('至少需要保留一个语言')
+      }
+      
+      // 删除语言
+      this.supportedLanguages = this.supportedLanguages.filter(lang => lang.code !== languageCode)
+      
+      // 保存到 localStorage
+      this.saveLanguagesToLocal()
+      
+      console.log('删除语言:', languageCode)
+    },
+
+    // 保存语言列表到 localStorage
+    saveLanguagesToLocal() {
+      try {
+        localStorage.setItem('supportedLanguages', JSON.stringify(this.supportedLanguages))
+        console.log('语言列表已保存到 localStorage')
+      } catch (error) {
+        console.warn('保存语言列表到 localStorage 失败:', error)
+      }
+    },
+
+    // 从 localStorage 加载语言列表
+    loadLanguagesFromLocal() {
+      try {
+        const saved = localStorage.getItem('supportedLanguages')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          // 确保至少有一个语言
+          if (parsed && parsed.length > 0) {
+            this.supportedLanguages = parsed
+            console.log('从 localStorage 加载语言列表:', parsed.length, '个语言')
+          }
+        }
+      } catch (error) {
+        console.warn('从 localStorage 加载语言列表失败:', error)
+      }
     },
 
     // 切换学习语言

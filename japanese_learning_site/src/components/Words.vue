@@ -234,12 +234,9 @@ export default {
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(textToSpeak)
           
-          // 根据当前学习语言设置语音
+          // 根据当前学习语言设置语音（使用映射表支持多种语言）
           const languageCode = dataStore.currentLanguage
-          utterance.lang = languageCode === 'ja' ? 'ja-JP' : 
-                          languageCode === 'en' ? 'en-US' : 
-                          languageCode === 'ko' ? 'ko-KR' : 
-                          languageCode === 'hi' ? 'hi-IN' : 'zh-CN'
+          utterance.lang = dataStore.getSpeechCode(languageCode)
           
           utterance.rate = 0.8
           utterance.pitch = 1
