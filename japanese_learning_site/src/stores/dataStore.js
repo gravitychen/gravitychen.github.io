@@ -21,6 +21,12 @@ export const useDataStore = defineStore('data', {
       sentences: new Set(),
       qa: new Set()
     },
+    // 存储"已熟记"的项目ID
+    masteredItems: {
+      words: new Set(),
+      sentences: new Set(),
+      qa: new Set()
+    },
     showJapanese: true,
     isOnline: false,
     syncInProgress: false,
@@ -96,6 +102,10 @@ export const useDataStore = defineStore('data', {
         if (state.reviewProgress[`incorrect_word_${word.id}`]) {
           return false
         }
+        // 如果项目在熟记区，不显示在普通复习区
+        if (state.reviewProgress[`mastered_word_${word.id}`]) {
+          return false
+        }
         const lastReview = state.reviewProgress[`word_${word.id}`]
         return !lastReview || (now - lastReview) >= oneDayMs
       })
@@ -109,6 +119,10 @@ export const useDataStore = defineStore('data', {
         if (state.reviewProgress[`incorrect_sentence_${sentence.id}`]) {
           return false
         }
+        // 如果项目在熟记区，不显示在普通复习区
+        if (state.reviewProgress[`mastered_sentence_${sentence.id}`]) {
+          return false
+        }
         const lastReview = state.reviewProgress[`sentence_${sentence.id}`]
         return !lastReview || (now - lastReview) >= oneDayMs
       })
@@ -120,6 +134,10 @@ export const useDataStore = defineStore('data', {
       return state.qa.filter(qa => {
         // 如果项目在集中复习区，不显示在普通复习区
         if (state.reviewProgress[`incorrect_qa_${qa.id}`]) {
+          return false
+        }
+        // 如果项目在熟记区，不显示在普通复习区
+        if (state.reviewProgress[`mastered_qa_${qa.id}`]) {
           return false
         }
         const lastReview = state.reviewProgress[`qa_${qa.id}`]
@@ -138,24 +156,81 @@ export const useDataStore = defineStore('data', {
       return lang ? lang.name : '未知语言'
     },
     
-    // 获取"没记住"的项目列表（从 reviewProgress 中读取）
+    // 获取"没记住"的项目列表（从 reviewProgress 中读取，排除熟记区的项目）
     incorrectWords: (state) => {
-      return state.words.filter(word => state.reviewProgress[`incorrect_word_${word.id}`] === true)
+      return state.words.filter(word => {
+        // 如果项目在熟记区，不显示在集中复习区
+        if (state.reviewProgress[`mastered_word_${word.id}`]) {
+          return false
+        }
+        return state.reviewProgress[`incorrect_word_${word.id}`] === true
+      })
     },
     
     incorrectSentences: (state) => {
-      return state.sentences.filter(sentence => state.reviewProgress[`incorrect_sentence_${sentence.id}`] === true)
+      return state.sentences.filter(sentence => {
+        // 如果项目在熟记区，不显示在集中复习区
+        if (state.reviewProgress[`mastered_sentence_${sentence.id}`]) {
+          return false
+        }
+        return state.reviewProgress[`incorrect_sentence_${sentence.id}`] === true
+      })
     },
     
     incorrectQA: (state) => {
-      return state.qa.filter(qa => state.reviewProgress[`incorrect_qa_${qa.id}`] === true)
+      return state.qa.filter(qa => {
+        // 如果项目在熟记区，不显示在集中复习区
+        if (state.reviewProgress[`mastered_qa_${qa.id}`]) {
+          return false
+        }
+        return state.reviewProgress[`incorrect_qa_${qa.id}`] === true
+      })
     },
     
-    // 获取所有"没记住"项目的总数
+    // 获取所有"没记住"项目的总数（排除熟记区的项目）
     totalIncorrectItems: (state) => {
-      const wordsCount = state.words.filter(w => state.reviewProgress[`incorrect_word_${w.id}`] === true).length
-      const sentencesCount = state.sentences.filter(s => state.reviewProgress[`incorrect_sentence_${s.id}`] === true).length
-      const qaCount = state.qa.filter(q => state.reviewProgress[`incorrect_qa_${q.id}`] === true).length
+      const wordsCount = state.words.filter(w => {
+        // 排除熟记区的项目
+        if (state.reviewProgress[`mastered_word_${w.id}`]) {
+          return false
+        }
+        return state.reviewProgress[`incorrect_word_${w.id}`] === true
+      }).length
+      const sentencesCount = state.sentences.filter(s => {
+        // 排除熟记区的项目
+        if (state.reviewProgress[`mastered_sentence_${s.id}`]) {
+          return false
+        }
+        return state.reviewProgress[`incorrect_sentence_${s.id}`] === true
+      }).length
+      const qaCount = state.qa.filter(q => {
+        // 排除熟记区的项目
+        if (state.reviewProgress[`mastered_qa_${q.id}`]) {
+          return false
+        }
+        return state.reviewProgress[`incorrect_qa_${q.id}`] === true
+      }).length
+      return wordsCount + sentencesCount + qaCount
+    },
+    
+    // 获取"已熟记"的项目列表（从 reviewProgress 中读取）
+    masteredWords: (state) => {
+      return state.words.filter(word => state.reviewProgress[`mastered_word_${word.id}`] === true)
+    },
+    
+    masteredSentences: (state) => {
+      return state.sentences.filter(sentence => state.reviewProgress[`mastered_sentence_${sentence.id}`] === true)
+    },
+    
+    masteredQA: (state) => {
+      return state.qa.filter(qa => state.reviewProgress[`mastered_qa_${qa.id}`] === true)
+    },
+    
+    // 获取所有"已熟记"项目的总数
+    totalMasteredItems: (state) => {
+      const wordsCount = state.words.filter(w => state.reviewProgress[`mastered_word_${w.id}`] === true).length
+      const sentencesCount = state.sentences.filter(s => state.reviewProgress[`mastered_sentence_${s.id}`] === true).length
+      const qaCount = state.qa.filter(q => state.reviewProgress[`mastered_qa_${q.id}`] === true).length
       return wordsCount + sentencesCount + qaCount
     },
     
@@ -269,24 +344,27 @@ export const useDataStore = defineStore('data', {
       dataService.listenToData('words', (words) => {
         console.log('单词数据更新:', words.length, '个')
         this.words = words || []
-        // 数据更新后，确保恢复集中复习区的数据
+        // 数据更新后，确保恢复集中复习区和熟记区的数据
         this.restoreIncorrectItemsFromProgress()
+        this.restoreMasteredItemsFromProgress()
       }, this.currentLanguage)
 
       // 监听句子变化
       dataService.listenToData('sentences', (sentences) => {
         console.log('句子数据更新:', sentences.length, '个')
         this.sentences = sentences || []
-        // 数据更新后，确保恢复集中复习区的数据
+        // 数据更新后，确保恢复集中复习区和熟记区的数据
         this.restoreIncorrectItemsFromProgress()
+        this.restoreMasteredItemsFromProgress()
       }, this.currentLanguage)
 
       // 监听问答变化
       dataService.listenToData('qa', (qa) => {
         console.log('问答数据更新:', qa.length, '个')
         this.qa = qa || []
-        // 数据更新后，确保恢复集中复习区的数据
+        // 数据更新后，确保恢复集中复习区和熟记区的数据
         this.restoreIncorrectItemsFromProgress()
+        this.restoreMasteredItemsFromProgress()
       }, this.currentLanguage)
 
       console.log('实时同步监听已设置')
@@ -646,6 +724,77 @@ export const useDataStore = defineStore('data', {
       // 保存到 localStorage 和云端
       await this.saveReviewProgressToLocal()
     },
+
+    // 标记为"已熟记"（添加到熟记区）
+    async markAsMastered(type, id) {
+      const timestamp = new Date().toISOString()
+      const masteredKey = `mastered_${type}_${id}`
+      console.log(`[熟记日志 ${timestamp}] ✅ markAsMastered 开始:`, { type, id, masteredKey })
+      
+      // 标记为"已熟记"
+      this.reviewProgress[masteredKey] = true
+      console.log(`[熟记日志 ${timestamp}] 已标记为"已熟记":`, { masteredKey })
+      
+      // 同步更新 masteredItems Set（用于内存中的快速访问）
+      const collectionKey = `${type}s`
+      if (this.masteredItems[collectionKey]) {
+        this.masteredItems[collectionKey].add(id)
+        console.log(`[熟记日志 ${timestamp}] 已更新 masteredItems Set:`, { 
+          collectionKey, 
+          size: this.masteredItems[collectionKey].size 
+        })
+      }
+      
+      // 如果项目在集中复习区，同时从集中复习区移除
+      const incorrectKey = `incorrect_${type}_${id}`
+      if (this.reviewProgress[incorrectKey] === true) {
+        delete this.reviewProgress[incorrectKey]
+        if (this.incorrectItems[collectionKey]) {
+          this.incorrectItems[collectionKey].delete(id)
+        }
+        console.log(`[熟记日志 ${timestamp}] 同时从集中复习区移除`)
+      }
+      
+      // 保存到 localStorage 和云端以便持久化
+      await this.saveReviewProgressToLocal()
+      console.log(`[熟记日志 ${timestamp}] ✅ 项目已添加到熟记区:`, { type, id })
+    },
+    
+    // 从熟记区移除
+    async removeFromMastered(type, id) {
+      const timestamp = new Date().toISOString()
+      const masteredKey = `mastered_${type}_${id}`
+      console.log(`[熟记日志 ${timestamp}] 🔄 removeFromMastered 开始:`, { type, id, masteredKey })
+      
+      if (this.reviewProgress[masteredKey] === true) {
+        delete this.reviewProgress[masteredKey]
+        // 同步更新 masteredItems Set
+        const collectionKey = `${type}s`
+        if (this.masteredItems[collectionKey]) {
+          this.masteredItems[collectionKey].delete(id)
+        }
+        console.log(`[熟记日志 ${timestamp}] ✅ 项目已从熟记区移除:`, { type, id })
+      }
+      
+      // 保存到 localStorage 和云端
+      await this.saveReviewProgressToLocal()
+    },
+    
+    // 清除所有"已熟记"的项目
+    async clearMasteredItems() {
+      // 从 reviewProgress 中删除所有 mastered_ 开头的键
+      Object.keys(this.reviewProgress).forEach(key => {
+        if (key.startsWith('mastered_')) {
+          delete this.reviewProgress[key]
+        }
+      })
+      // 清空 masteredItems Set
+      this.masteredItems.words.clear()
+      this.masteredItems.sentences.clear()
+      this.masteredItems.qa.clear()
+      // 保存到 localStorage 和云端
+      await this.saveReviewProgressToLocal()
+    },
     
     // 保存复习进度到 localStorage 和云端
     async saveReviewProgressToLocal() {
@@ -747,10 +896,17 @@ export const useDataStore = defineStore('data', {
           console.log('从 localStorage 加载复习进度:', Object.keys(parsed).length, '条记录')
           // 恢复 incorrectItems Set
           this.restoreIncorrectItemsFromProgress()
+          // 恢复 masteredItems Set
+          this.restoreMasteredItemsFromProgress()
           console.log('恢复集中复习区数据（永久记忆体）:', {
             words: this.incorrectItems.words.size,
             sentences: this.incorrectItems.sentences.size,
             qa: this.incorrectItems.qa.size
+          })
+          console.log('恢复熟记区数据:', {
+            words: this.masteredItems.words.size,
+            sentences: this.masteredItems.sentences.size,
+            qa: this.masteredItems.qa.size
           })
         } else {
           console.log('localStorage 中没有复习进度数据')
@@ -850,23 +1006,36 @@ export const useDataStore = defineStore('data', {
           console.log(`[同步日志 ${timestamp}] 💾 步骤5: 保存合并后的数据...`)
           await this.saveReviewProgressToLocal()
           
-          // 6. 恢复 incorrectItems Set
-          console.log(`[同步日志 ${timestamp}] 🔄 步骤6: 恢复 incorrectItems Set...`)
+          // 6. 恢复 incorrectItems Set 和 masteredItems Set
+          console.log(`[同步日志 ${timestamp}] 🔄 步骤6: 恢复 incorrectItems Set 和 masteredItems Set...`)
           this.restoreIncorrectItemsFromProgress()
+          this.restoreMasteredItemsFromProgress()
           console.log(`[同步日志 ${timestamp}] ✅ 合并后的集中复习区数据（永久记忆体）:`, {
             words: this.incorrectItems.words.size,
             sentences: this.incorrectItems.sentences.size,
             qa: this.incorrectItems.qa.size,
             total: this.incorrectItems.words.size + this.incorrectItems.sentences.size + this.incorrectItems.qa.size
           })
+          console.log(`[同步日志 ${timestamp}] ✅ 合并后的熟记区数据:`, {
+            words: this.masteredItems.words.size,
+            sentences: this.masteredItems.sentences.size,
+            qa: this.masteredItems.qa.size,
+            total: this.masteredItems.words.size + this.masteredItems.sentences.size + this.masteredItems.qa.size
+          })
         } else {
           // 云端没有数据，只使用本地数据
           console.log(`[同步日志 ${timestamp}] ⚠️ 云端没有复习进度数据，使用本地数据`)
           this.restoreIncorrectItemsFromProgress()
+          this.restoreMasteredItemsFromProgress()
           console.log(`[同步日志 ${timestamp}] ✅ 本地集中复习区数据:`, {
             words: this.incorrectItems.words.size,
             sentences: this.incorrectItems.sentences.size,
             qa: this.incorrectItems.qa.size
+          })
+          console.log(`[同步日志 ${timestamp}] ✅ 本地熟记区数据:`, {
+            words: this.masteredItems.words.size,
+            sentences: this.masteredItems.sentences.size,
+            qa: this.masteredItems.qa.size
           })
         }
       } catch (error) {
@@ -876,6 +1045,7 @@ export const useDataStore = defineStore('data', {
         })
         // 即使云端同步失败，也恢复本地数据
         this.restoreIncorrectItemsFromProgress()
+        this.restoreMasteredItemsFromProgress()
       }
       
       console.log(`[同步日志 ${timestamp}] 🔄 syncReviewProgressFromCloud 完成`)
@@ -897,6 +1067,26 @@ export const useDataStore = defineStore('data', {
         } else if (key.startsWith('incorrect_qa_')) {
           const id = key.replace('incorrect_qa_', '')
           this.incorrectItems.qa.add(id)
+        }
+      })
+    },
+
+    // 从 reviewProgress 恢复 masteredItems Set
+    restoreMasteredItemsFromProgress() {
+      this.masteredItems.words.clear()
+      this.masteredItems.sentences.clear()
+      this.masteredItems.qa.clear()
+      
+      Object.keys(this.reviewProgress).forEach(key => {
+        if (key.startsWith('mastered_word_')) {
+          const id = key.replace('mastered_word_', '')
+          this.masteredItems.words.add(id)
+        } else if (key.startsWith('mastered_sentence_')) {
+          const id = key.replace('mastered_sentence_', '')
+          this.masteredItems.sentences.add(id)
+        } else if (key.startsWith('mastered_qa_')) {
+          const id = key.replace('mastered_qa_', '')
+          this.masteredItems.qa.add(id)
         }
       })
     },

@@ -76,8 +76,8 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
                 </div>
               </div>
               <div class="step-hint highlight-hint">
-                🎬 重要提示：要主动去联想这个场景！<br>
-                要有身临其境感，想象自己在这个情境中，体会当时的感觉和情绪。
+                🎬 重要提示：忘掉刚才的文字！！！主动去联想这个场景！<br>
+                要有身临其境感，想象自己在这个情境中，体会当时的感觉和情绪。学语言学的是语言，不是学翻译！
               </div>
             </div>
 
@@ -141,6 +141,9 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
               <button @click="markIncorrect" class="incorrect-btn">
                 ❌ 没记住
               </button>
+              <button @click="markAsMastered" class="mastered-btn">
+                ⭐ 移动到熟记区
+              </button>
             </div>
           </div>
         </template>
@@ -149,55 +152,27 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
         <template v-else>
           <div class="review-item">
             <div class="item-question">
-              <template v-if="isIncorrectReview">
-                <!-- 集中复习模式：根据项目类型显示 -->
-                <template v-if="getCurrentItem()._type === 'word'">
-                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else-if="getCurrentItem()._type === 'sentence'">
-                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().japanese || getCurrentItem().question }}
-                </template>
+              <!-- 统一逻辑：根据项目类型显示（集中复习、熟记复习、普通复习都使用相同逻辑） -->
+              <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
+                {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
+              </template>
+              <template v-else-if="getCurrentItem()._type === 'sentence' || reviewType === 'sentences'">
+                {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
               </template>
               <template v-else>
-                <!-- 普通复习模式 -->
-                <template v-if="reviewType === 'words'">
-                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else-if="reviewType === 'sentences'">
-                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().japanese || getCurrentItem().question }}
-                </template>
+                {{ getCurrentItem().japanese || getCurrentItem().question }}
               </template>
             </div>
             <div v-if="showAnswer" class="item-answer">
-              <template v-if="isIncorrectReview">
-                <!-- 集中复习模式：根据项目类型显示 -->
-                <template v-if="getCurrentItem()._type === 'word'">
-                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else-if="getCurrentItem()._type === 'sentence'">
-                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
-                </template>
+              <!-- 统一逻辑：根据项目类型显示（集中复习、熟记复习、普通复习都使用相同逻辑） -->
+              <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
+                {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
+              </template>
+              <template v-else-if="getCurrentItem()._type === 'sentence' || reviewType === 'sentences'">
+                {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
               </template>
               <template v-else>
-                <!-- 普通复习模式 -->
-                <template v-if="reviewType === 'words'">
-                  {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
-                </template>
-                <template v-else-if="reviewType === 'sentences'">
-                  {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
-                </template>
-                <template v-else>
-                  {{ getCurrentItem().chinese || getCurrentItem().answer }}
-                </template>
+                {{ getCurrentItem().chinese || getCurrentItem().answer }}
               </template>
             </div>
           </div>
@@ -217,6 +192,9 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
               </button>
               <button @click="markIncorrect" class="incorrect-btn">
                 ❌ 没记住
+              </button>
+              <button @click="markAsMastered" class="mastered-btn">
+                ⭐ 移动到熟记区
               </button>
             </div>
           </div>
@@ -283,6 +261,39 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
       </button>
     </div>
 
+    <!-- 熟记区 -->
+    <div v-if="dataStore.totalMasteredItems > 0" class="mastered-review-section">
+      <h3>⭐ 熟记区 - 已熟记的项目</h3>
+      <div class="mastered-stats">
+        <div class="mastered-stat-item">
+          <span class="stat-number">{{ dataStore.masteredWords.length }}</span>
+          <span class="stat-label">个单词</span>
+        </div>
+        <div class="mastered-stat-item">
+          <span class="stat-number">{{ dataStore.masteredSentences.length }}</span>
+          <span class="stat-label">个句子</span>
+        </div>
+        <div class="mastered-stat-item">
+          <span class="stat-number">{{ dataStore.masteredQA.length }}</span>
+          <span class="stat-label">个问答</span>
+        </div>
+      </div>
+      <button 
+        @click="startMasteredReview" 
+        class="mastered-review-btn"
+      >
+        <span class="btn-icon">⭐</span>
+        <span class="btn-text">开始熟记复习</span>
+        <span class="btn-count">({{ dataStore.totalMasteredItems }})</span>
+      </button>
+      <button 
+        @click="clearMasteredItems" 
+        class="clear-mastered-btn"
+      >
+        清除所有标记
+      </button>
+    </div>
+
     <!-- 复习内容选择 -->
     <div class="review-options">
       <h3>选择复习内容</h3>
@@ -322,7 +333,7 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useDataStore } from '../stores/dataStore'
 
 // Vue 的 ref 是什么？
@@ -344,6 +355,24 @@ export default {
     // 使用 storeToRefs 确保响应式追踪
     const { showJapanese, currentLanguageName } = storeToRefs(dataStore)
     
+    // 监听 showJapanese 的变化
+    watch(showJapanese, (newVal, oldVal) => {
+      console.log('[显示语言切换] showJapanese 变化:', {
+        old: oldVal,
+        new: newVal,
+        reviewMode: reviewMode.value,
+        currentIndex: currentIndex.value,
+        currentItem: reviewItems.value[currentIndex.value],
+        reviewItemsLength: reviewItems.value.length
+      })
+      // 强制触发响应式更新（通过重新赋值数组）
+      if (reviewMode.value && reviewItems.value.length > 0) {
+        // 创建一个新数组引用，触发 Vue 的响应式更新
+        reviewItems.value = [...reviewItems.value]
+        console.log('[显示语言切换] 已强制触发响应式更新')
+      }
+    })
+    
     const reviewMode = ref(false)
     const reviewType = ref('')
     const reviewItems = ref([])
@@ -356,9 +385,18 @@ export default {
     // 记忆模式：'dictionary'（词典记忆）或 'scenario'（情景记忆）
     const memoryMode = ref('dictionary')
     
-    // 判断是否是集中复习模式
+    // 判断是否是集中复习模式（用于标题显示等）
     const isIncorrectReview = computed(() => {
-      return reviewItems.value.length > 0 && reviewItems.value[0]?._type !== undefined
+      if (reviewItems.value.length === 0) return false
+      const firstItem = reviewItems.value[0]
+      return firstItem?._type !== undefined && !firstItem?._mastered
+    })
+
+    // 判断是否是熟记复习模式（用于标题显示等）
+    const isMasteredReview = computed(() => {
+      if (reviewItems.value.length === 0) return false
+      const firstItem = reviewItems.value[0]
+      return firstItem?._type !== undefined && firstItem?._mastered === true
     })
 
     const totalToReview = computed(() => {
@@ -402,12 +440,19 @@ export default {
 
     // 开始集中复习（所有"没记住"的项目）
     const startIncorrectReview = () => {
-      // 合并所有"没记住"的项目
+      // 合并所有"没记住"的项目，确保没有 _mastered 标记
       const allIncorrect = [
-        ...dataStore.incorrectWords.map(w => ({ ...w, _type: 'word' })),
-        ...dataStore.incorrectSentences.map(s => ({ ...s, _type: 'sentence' })),
-        ...dataStore.incorrectQA.map(q => ({ ...q, _type: 'qa' }))
+        ...dataStore.incorrectWords.map(w => ({ ...w, _type: 'word', _mastered: false })),
+        ...dataStore.incorrectSentences.map(s => ({ ...s, _type: 'sentence', _mastered: false })),
+        ...dataStore.incorrectQA.map(q => ({ ...q, _type: 'qa', _mastered: false }))
       ]
+      console.log('[开始集中复习]', {
+        incorrectWords: dataStore.incorrectWords.length,
+        incorrectSentences: dataStore.incorrectSentences.length,
+        incorrectQA: dataStore.incorrectQA.length,
+        allIncorrect: allIncorrect.length,
+        firstItem: allIncorrect[0]
+      })
       
       if (allIncorrect.length === 0) {
         alert('没有需要集中复习的内容！')
@@ -514,6 +559,79 @@ export default {
       nextItem()
     }
 
+    // 标记为"已熟记"（移动到熟记区）
+    const markAsMastered = async () => {
+      const item = getCurrentItem()
+      // 判断是集中复习还是普通复习
+      if (item._type) {
+        // 集中复习模式：移动到熟记区，同时从集中复习区移除
+        const itemType = item._type // 'word', 'sentence', 'qa'
+        await dataStore.markAsMastered(itemType, item.id)
+        
+        // 从当前复习列表中移除该项目
+        reviewItems.value = reviewItems.value.filter(i => i.id !== item.id)
+        
+        // 如果列表为空，结束复习
+        if (reviewItems.value.length === 0) {
+          reviewCompleted.value = true
+          reviewMode.value = false
+          return
+        }
+        
+        // 如果当前索引超出范围，调整索引
+        if (currentIndex.value >= reviewItems.value.length) {
+          currentIndex.value = reviewItems.value.length - 1
+        }
+        
+        // 重置显示状态
+        showAnswer.value = false
+        if (memoryMode.value === 'scenario') {
+          sentenceStep.value = 1
+        }
+      } else {
+        // 普通复习模式：移动到熟记区
+        const itemType = reviewType.value.slice(0, -1) // 'words' -> 'word', 'sentences' -> 'sentence'
+        await dataStore.markAsMastered(itemType, item.id)
+        nextItem()
+      }
+    }
+
+    // 开始熟记复习（所有"已熟记"的项目）
+    const startMasteredReview = () => {
+      // 合并所有"已熟记"的项目，添加 _mastered 标记
+      const allMastered = [
+        ...dataStore.masteredWords.map(w => ({ ...w, _type: 'word', _mastered: true })),
+        ...dataStore.masteredSentences.map(s => ({ ...s, _type: 'sentence', _mastered: true })),
+        ...dataStore.masteredQA.map(q => ({ ...q, _type: 'qa', _mastered: true }))
+      ]
+      
+      if (allMastered.length === 0) {
+        alert('没有需要熟记复习的内容！')
+        return
+      }
+
+      // 打乱顺序
+      allMastered.sort(() => Math.random() - 0.5)
+      
+      reviewItems.value = allMastered
+      reviewMode.value = true
+      currentIndex.value = 0
+      showAnswer.value = false
+      correctCount.value = 0
+      reviewCompleted.value = false
+      // 熟记复习默认使用词典记忆模式
+      memoryMode.value = 'dictionary'
+      sentenceStep.value = 1
+    }
+
+    // 清除所有"已熟记"的标记
+    const clearMasteredItems = async () => {
+      if (confirm('确定要清除所有"已熟记"的标记吗？')) {
+        await dataStore.clearMasteredItems()
+        alert('已清除所有标记')
+      }
+    }
+
     const nextItem = () => {
       if (currentIndex.value < reviewItems.value.length - 1) {
         currentIndex.value++
@@ -555,6 +673,11 @@ export default {
       correctCount,
       reviewCompleted,
       totalToReview,
+      markAsMastered,
+      startMasteredReview,
+      clearMasteredItems,
+      isIncorrectReview,
+      isMasteredReview,
       completedCount,
       sentenceStep,
       memoryMode,
@@ -743,6 +866,108 @@ export default {
 
 .clear-incorrect-btn:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* 熟记区样式 */
+.mastered-review-section {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+}
+
+.mastered-review-section h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.mastered-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 1rem;
+}
+
+.mastered-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.mastered-stat-item .stat-number {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.mastered-stat-item .stat-label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.mastered-review-btn {
+  width: 100%;
+  background: #333;
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mastered-review-btn:hover {
+  background: #555;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.clear-mastered-btn {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  color: #333;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  padding: 0.6rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.clear-mastered-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+/* 移动到熟记区按钮样式 */
+.mastered-btn {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #333;
+  border: none;
+  padding: 0.8rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  flex: 1;
+}
+
+.mastered-btn:hover {
+  background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
 }
 
 .btn-icon {
@@ -960,11 +1185,14 @@ export default {
 
 .answer-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
-.correct-btn, .incorrect-btn {
+.correct-btn, .incorrect-btn, .mastered-btn {
+  flex: 1;
+  min-width: 0;
   padding: 1rem 1.5rem;
   border: none;
   border-radius: 8px;
@@ -983,7 +1211,7 @@ export default {
   color: white;
 }
 
-.correct-btn:hover, .incorrect-btn:hover {
+.correct-btn:hover, .incorrect-btn:hover, .mastered-btn:hover {
   transform: translateY(-2px);
 }
 
