@@ -3,7 +3,7 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
 
 <template>
   <div class="review">
-    <div class="header">
+    <div class="header" ref="reviewHeader">
       <h2>📚 复习中心</h2>
       <div class="progress-info">
         <span>今日复习进度: {{ completedCount }}/{{ totalToReview }}</span>
@@ -11,7 +11,7 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
     </div>
 
     <!-- 复习模式 -->
-    <div v-if="reviewMode" class="review-mode">
+    <div v-if="reviewMode" ref="reviewModeBox" class="review-mode">
       <div class="review-header">
         <h3>{{ getReviewTitle() }}</h3>
         <div class="review-progress">
@@ -19,8 +19,13 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
         </div>
       </div>
 
-      <!-- 记忆模式切换按钮（问答复习和集中复习不显示） -->
-      <div v-if="reviewType !== 'qa' && !isIncorrectReview" class="memory-mode-switch">
+      <!-- 记忆模式切换按钮（问答类型不显示，但集中复习中的单词和句子可以显示） -->
+      <!-- 原理：
+           1. 普通复习模式：reviewType !== 'qa' 时显示
+           2. 集中复习模式：isIncorrectReview 为 true，但当前项目不是问答类型时也显示
+           3. 使用 !isCurrentItemQA 来判断当前项目是否不是问答类型
+      -->
+      <div v-if="!isCurrentItemQA" class="memory-mode-switch">
         <button 
           @click="memoryMode = 'dictionary'" 
           :class="['mode-btn', { active: memoryMode === 'dictionary' }]"
@@ -36,14 +41,20 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
       </div>
 
       <div class="review-content">
-        <!-- 情景记忆模式：三步渐进式显示（适用于单词和句子，不适用于问答和集中复习） -->
-        <template v-if="memoryMode === 'scenario' && reviewType !== 'qa' && !isIncorrectReview">
+        <!-- 情景记忆模式：三步渐进式显示（适用于单词和句子，包括集中复习中的单词和句子） -->
+        <!-- 原理：
+             1. memoryMode === 'scenario'：当前是情景记忆模式
+             2. !isCurrentItemQA：当前项目不是问答类型（问答不支持情景记忆）
+             3. 这样集中复习中的单词和句子也可以使用情景记忆模式了
+        -->
+        <template v-if="memoryMode === 'scenario' && !isCurrentItemQA">
           <div class="review-item">
             <!-- 步骤1：显示中文 + 强调内在感觉 -->
             <div v-if="sentenceStep === 1" class="sentence-step">
               <div class="step-label">步骤 1/3</div>
               <div class="item-chinese">
-                <template v-if="reviewType === 'words'">
+                <!-- 支持集中复习：根据当前项目的类型判断是单词还是句子 -->
+                <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
                   {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
                 </template>
                 <template v-else>
@@ -52,7 +63,7 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
               </div>
               <div class="step-hint highlight-hint">
                 💭 重要提示：不要只看文字！<br>
-                <template v-if="reviewType === 'words'">
+                <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
                   要主动联想到这个单词对应的内在感觉和含义，用心感受这个单词传达的意思。
                 </template>
                 <template v-else>
@@ -67,7 +78,8 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
               <div class="item-context">
                 <div class="context-label">📍 使用情境：</div>
                 <div class="context-content">
-                  <template v-if="reviewType === 'words'">
+                  <!-- 支持集中复习：根据当前项目的类型判断是单词还是句子 -->
+                  <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
                     {{ getCurrentItem().context || '（未设置使用情境，可以想象这个单词在什么场景下使用）' }}
                   </template>
                   <template v-else>
@@ -85,7 +97,8 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
             <div v-if="sentenceStep === 3" class="sentence-step">
               <div class="step-label">步骤 3/3</div>
               <div class="item-chinese">
-                <template v-if="reviewType === 'words'">
+                <!-- 支持集中复习：根据当前项目的类型判断是单词还是句子 -->
+                <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
                   {{ showJapanese ? getCurrentItem().chinese : getCurrentItem().japanese }}
                 </template>
                 <template v-else>
@@ -98,7 +111,8 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
               </div>
               <div class="item-answer">
                 <div class="answer-label">
-                  <template v-if="reviewType === 'words'">
+                  <!-- 支持集中复习：根据当前项目的类型判断是单词还是句子 -->
+                  <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
                     {{ showJapanese ? '🇯🇵 ' + currentLanguageName + '单词：' : '🇨🇳 中文翻译：' }}
                   </template>
                   <template v-else>
@@ -106,7 +120,8 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
                   </template>
                 </div>
                 <div class="answer-content">
-                  <template v-if="reviewType === 'words'">
+                  <!-- 支持集中复习：根据当前项目的类型判断是单词还是句子 -->
+                  <template v-if="getCurrentItem()._type === 'word' || reviewType === 'words'">
                     {{ showJapanese ? getCurrentItem().japanese : getCurrentItem().chinese }}
                   </template>
                   <template v-else>
@@ -131,19 +146,45 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
               @click="sentenceStep = 3" 
               class="show-answer-btn"
             >
-              下一步：查看{{ reviewType === 'words' ? (showJapanese ? currentLanguageName + '单词' : '中文翻译') : (currentLanguageName + '句子') }}
+              <!-- 支持集中复习：根据当前项目的类型判断是单词还是句子 -->
+              下一步：查看{{ (getCurrentItem()._type === 'word' || reviewType === 'words') ? (showJapanese ? currentLanguageName + '单词' : '中文翻译') : (currentLanguageName + '句子') }}
             </button>
             
             <div v-if="sentenceStep === 3" class="answer-actions">
-              <button @click="markCorrect" class="correct-btn">
-                ✅ 记住了
-              </button>
-              <button @click="markIncorrect" class="incorrect-btn">
-                ❌ 没记住
-              </button>
-              <button @click="markAsMastered" class="mastered-btn">
-                ⭐ 移动到熟记区
-              </button>
+              <!-- 根据不同的复习模式显示不同的按钮 -->
+              <!-- 熟记复习模式：显示"记住了"、"取消熟记"（不再显示"没记住"） -->
+              <template v-if="isMasteredReview">
+                <button @click="markCorrect" class="correct-btn">
+                  ✅ 记住了
+                </button>
+                <button @click="removeFromMastered" class="normal-btn">
+                  🔄 取消熟记（回到普通复习）
+                </button>
+              </template>
+              <!-- 集中复习模式：显示"移动到普通复习区"、"没记住"、"移动到熟记区" -->
+              <template v-else-if="isIncorrectReview">
+                <button @click="moveToNormalReview" class="normal-btn">
+                  🔄 移动到普通复习区
+                </button>
+                <button @click="markIncorrect" class="incorrect-btn">
+                  ❌ 没记住
+                </button>
+                <button @click="markAsMastered" class="mastered-btn">
+                  ⭐ 移动到熟记区
+                </button>
+              </template>
+              <!-- 普通复习模式：显示"记住了"、"没记住"、"移动到熟记区" -->
+              <template v-else>
+                <button @click="markCorrect" class="correct-btn">
+                  ✅ 记住了
+                </button>
+                <button @click="markIncorrect" class="incorrect-btn">
+                  ❌ 没记住（移到集中复习）
+                </button>
+                <button @click="markAsMastered" class="mastered-btn">
+                  ⭐ 移动到熟记区
+                </button>
+              </template>
             </div>
           </div>
         </template>
@@ -187,25 +228,45 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
             </button>
             
             <div v-if="showAnswer" class="answer-actions">
-              <button @click="markCorrect" class="correct-btn">
-                ✅ 记住了
-              </button>
-              <button @click="markIncorrect" class="incorrect-btn">
-                ❌ 没记住
-              </button>
-              <button @click="markAsMastered" class="mastered-btn">
-                ⭐ 移动到熟记区
-              </button>
+              <!-- 根据不同的复习模式显示不同的按钮 -->
+              <!-- 熟记复习模式：显示"记住了"、"取消熟记"（不再显示"没记住"） -->
+              <template v-if="isMasteredReview">
+                <button @click="markCorrect" class="correct-btn">
+                  ✅ 记住了
+                </button>
+                <button @click="removeFromMastered" class="normal-btn">
+                  🔄 取消熟记（回到普通复习）
+                </button>
+              </template>
+              <!-- 集中复习模式：显示"移动到普通复习区"、"没记住"、"移动到熟记区" -->
+              <template v-else-if="isIncorrectReview">
+                <button @click="moveToNormalReview" class="normal-btn">
+                  🔄 移动到普通复习区
+                </button>
+                <button @click="markIncorrect" class="incorrect-btn">
+                  ❌ 没记住
+                </button>
+                <button @click="markAsMastered" class="mastered-btn">
+                  ⭐ 移动到熟记区
+                </button>
+              </template>
+              <!-- 普通复习模式：显示"记住了"、"没记住"、"移动到熟记区" -->
+              <template v-else>
+                <button @click="markCorrect" class="correct-btn">
+                  ✅ 记住了
+                </button>
+                <button @click="markIncorrect" class="incorrect-btn">
+                  ❌ 没记住（移到集中复习）
+                </button>
+                <button @click="markAsMastered" class="mastered-btn">
+                  ⭐ 移动到熟记区
+                </button>
+              </template>
             </div>
           </div>
         </template>
       </div>
 
-      <div class="review-controls">
-        <button @click="exitReview" class="exit-btn">
-          退出复习
-        </button>
-      </div>
     </div>
 
     <!-- 复习完成 -->
@@ -384,12 +445,29 @@ export default {
     const sentenceStep = ref(1)
     // 记忆模式：'dictionary'（词典记忆）或 'scenario'（情景记忆）
     const memoryMode = ref('dictionary')
+    // 复习模式box的引用，用于滚动定位
+    const reviewModeBox = ref(null)
+    // 复习中心标题的引用，用于滚动定位
+    const reviewHeader = ref(null)
     
     // 判断是否是集中复习模式（用于标题显示等）
     const isIncorrectReview = computed(() => {
       if (reviewItems.value.length === 0) return false
       const firstItem = reviewItems.value[0]
       return firstItem?._type !== undefined && !firstItem?._mastered
+    })
+
+    // 判断当前项目是否是问答类型（用于集中复习中判断是否显示情景记忆）
+    // 原理：在集中复习中，每个项目都有 _type 属性，可以是 'word', 'sentence', 'qa'
+    // 如果当前项目的 _type 是 'qa'，则不能使用情景记忆模式
+    const isCurrentItemQA = computed(() => {
+      const currentItem = getCurrentItem()
+      // 如果是集中复习模式，检查当前项目的类型
+      if (currentItem._type) {
+        return currentItem._type === 'qa'
+      }
+      // 如果是普通复习模式，检查复习类型
+      return reviewType.value === 'qa'
     })
 
     // 判断是否是熟记复习模式（用于标题显示等）
@@ -436,6 +514,8 @@ export default {
       }
       // 情景记忆模式重置到第一步
       sentenceStep.value = 1
+      // 滚动到复习box
+      scrollToReviewBox()
     }
 
     // 开始集中复习（所有"没记住"的项目）
@@ -471,6 +551,8 @@ export default {
       // 集中复习默认使用词典记忆模式
       memoryMode.value = 'dictionary'
       sentenceStep.value = 1
+      // 滚动到复习box
+      scrollToReviewBox()
     }
 
     // 清除所有"没记住"的标记
@@ -510,13 +592,74 @@ export default {
     const markCorrect = async () => {
       correctCount.value++
       const item = getCurrentItem()
-      // 判断是集中复习还是普通复习
+      
+      // 判断是哪种复习模式
       if (item._type) {
-        // 集中复习模式：点击"记住了"才从集中复习区移除
+        // 集中复习模式或熟记复习模式
         const itemType = item._type // 'word', 'sentence', 'qa'
+        
+        if (item._mastered) {
+          // 熟记复习模式：点击"记住了"表示保持熟记状态，从列表中移除
+          // 不需要做任何操作，因为已经在熟记区了
+          // 从当前复习列表中移除该项目
+          reviewItems.value = reviewItems.value.filter(i => i.id !== item.id)
+          
+          // 如果列表为空，结束复习
+          if (reviewItems.value.length === 0) {
+            reviewCompleted.value = true
+            reviewMode.value = false
+            return
+          }
+          
+          // 如果当前索引超出范围，调整索引
+          if (currentIndex.value >= reviewItems.value.length) {
+            currentIndex.value = reviewItems.value.length - 1
+          }
+          
+          // 重置显示状态，显示下一个项目
+          showAnswer.value = false
+          if (memoryMode.value === 'scenario') {
+            sentenceStep.value = 1
+          }
+        } else {
+          // 集中复习模式：不应该使用 markCorrect，应该使用 moveToNormalReview
+          // 这里保留逻辑以防万一，但集中复习区不会显示"记住了"按钮
+          await dataStore.markAsReviewed(itemType, item.id, true) // true 表示从集中复习区移除
+          reviewItems.value = reviewItems.value.filter(i => i.id !== item.id)
+          
+          if (reviewItems.value.length === 0) {
+            reviewCompleted.value = true
+            reviewMode.value = false
+            return
+          }
+          
+          if (currentIndex.value >= reviewItems.value.length) {
+            currentIndex.value = reviewItems.value.length - 1
+          }
+          
+          showAnswer.value = false
+          if (memoryMode.value === 'scenario') {
+            sentenceStep.value = 1
+          }
+        }
+      } else {
+        // 普通复习模式：标记为已复习，但不从集中复习区移除
+        await dataStore.markAsReviewed(reviewType.value.slice(0, -1), item.id, false) // false 表示不从集中复习区移除
+        nextItem()
+      }
+    }
+
+    // 从集中复习区移动到普通复习区
+    const moveToNormalReview = async () => {
+      const item = getCurrentItem()
+      
+      // 只有集中复习模式才能使用这个功能
+      if (item._type && !item._mastered) {
+        const itemType = item._type // 'word', 'sentence', 'qa'
+        // 从集中复习区移除，回到普通复习区
         await dataStore.markAsReviewed(itemType, item.id, true) // true 表示从集中复习区移除
         
-        // 从当前复习列表中移除该项目（因为已经从集中复习区移除了）
+        // 从当前复习列表中移除该项目
         reviewItems.value = reviewItems.value.filter(i => i.id !== item.id)
         
         // 如果列表为空，结束复习
@@ -526,46 +669,47 @@ export default {
           return
         }
         
-        // 如果当前索引超出范围，调整索引（不移除项目后，索引可能不变，但列表变短了）
+        // 如果当前索引超出范围，调整索引
         if (currentIndex.value >= reviewItems.value.length) {
           currentIndex.value = reviewItems.value.length - 1
         }
         
-        // 重置显示状态，显示下一个项目
+        // 重置显示状态
         showAnswer.value = false
         if (memoryMode.value === 'scenario') {
           sentenceStep.value = 1
         }
-        // 不需要调用 nextItem()，因为索引已经正确了
-      } else {
-        // 普通复习模式：标记为已复习，但不从集中复习区移除
-        // 因为集中复习区的项目不会出现在普通复习区，所以这里不需要处理集中复习区
-        await dataStore.markAsReviewed(reviewType.value.slice(0, -1), item.id, false) // false 表示不从集中复习区移除
-        nextItem()
       }
     }
 
     const markIncorrect = async () => {
       const item = getCurrentItem()
-      // 判断是集中复习还是普通复习
+      
+      // 判断是哪种复习模式
       if (item._type) {
         // 集中复习模式：保持标记为"没记住"，继续留在集中复习区
         // 不需要再次标记，因为已经在列表中
+        // 注意：熟记复习模式不再支持"没记住"功能
+        nextItem()
       } else {
         // 普通复习模式：将当前项目标记为"没记住"，添加到集中复习区
         const itemType = reviewType.value.slice(0, -1) // 'words' -> 'word', 'sentences' -> 'sentence'
         await dataStore.markAsIncorrect(itemType, item.id)
+        nextItem()
       }
-      nextItem()
     }
 
     // 标记为"已熟记"（移动到熟记区）
     const markAsMastered = async () => {
       const item = getCurrentItem()
-      // 判断是集中复习还是普通复习
+      
+      // 判断是哪种复习模式
       if (item._type) {
         // 集中复习模式：移动到熟记区，同时从集中复习区移除
         const itemType = item._type // 'word', 'sentence', 'qa'
+        // 1. 从集中复习区移除
+        await dataStore.markAsReviewed(itemType, item.id, true) // true 表示从集中复习区移除
+        // 2. 添加到熟记区
         await dataStore.markAsMastered(itemType, item.id)
         
         // 从当前复习列表中移除该项目
@@ -596,6 +740,39 @@ export default {
       }
     }
 
+    // 从熟记区移除（取消熟记，回到普通复习区）
+    const removeFromMastered = async () => {
+      const item = getCurrentItem()
+      
+      // 只有熟记复习模式才能使用这个功能
+      if (item._type && item._mastered) {
+        const itemType = item._type // 'word', 'sentence', 'qa'
+        // 从熟记区移除，回到普通复习区
+        await dataStore.removeFromMastered(itemType, item.id)
+        
+        // 从当前复习列表中移除该项目
+        reviewItems.value = reviewItems.value.filter(i => i.id !== item.id)
+        
+        // 如果列表为空，结束复习
+        if (reviewItems.value.length === 0) {
+          reviewCompleted.value = true
+          reviewMode.value = false
+          return
+        }
+        
+        // 如果当前索引超出范围，调整索引
+        if (currentIndex.value >= reviewItems.value.length) {
+          currentIndex.value = reviewItems.value.length - 1
+        }
+        
+        // 重置显示状态
+        showAnswer.value = false
+        if (memoryMode.value === 'scenario') {
+          sentenceStep.value = 1
+        }
+      }
+    }
+
     // 开始熟记复习（所有"已熟记"的项目）
     const startMasteredReview = () => {
       // 合并所有"已熟记"的项目，添加 _mastered 标记
@@ -622,6 +799,8 @@ export default {
       // 熟记复习默认使用词典记忆模式
       memoryMode.value = 'dictionary'
       sentenceStep.value = 1
+      // 滚动到复习box
+      scrollToReviewBox()
     }
 
     // 清除所有"已熟记"的标记
@@ -646,11 +825,16 @@ export default {
       }
     }
 
-    const exitReview = () => {
-      if (confirm('确定要退出复习吗？进度将不会保存。')) {
-        reviewMode.value = false
-        reviewCompleted.value = false
-      }
+    // 滚动到页面顶端的函数（适用于所有复习区）
+    const scrollToReviewBox = () => {
+      // 使用 setTimeout 确保 DOM 已经更新
+      setTimeout(() => {
+        // 直接滚动到页面顶端
+        window.scrollTo({
+          top: 0-100,
+          behavior: 'smooth' // 平滑滚动
+        })
+      }, 100) // 延迟100ms确保DOM已渲染
     }
 
     const resetReview = () => {
@@ -674,10 +858,13 @@ export default {
       reviewCompleted,
       totalToReview,
       markAsMastered,
+      removeFromMastered, // 添加从熟记区移除的函数
+      moveToNormalReview, // 添加从集中复习区移动到普通复习区的函数
       startMasteredReview,
       clearMasteredItems,
       isIncorrectReview,
       isMasteredReview,
+      isCurrentItemQA, // 添加判断当前项目是否是问答类型的计算属性
       completedCount,
       sentenceStep,
       memoryMode,
@@ -689,7 +876,6 @@ export default {
       getCurrentItemType,
       markCorrect,
       markIncorrect,
-      exitReview,
       resetReview
     }
   }
@@ -1190,7 +1376,7 @@ export default {
   flex-wrap: wrap;
 }
 
-.correct-btn, .incorrect-btn, .mastered-btn {
+.correct-btn, .incorrect-btn, .mastered-btn, .normal-btn {
   flex: 1;
   min-width: 0;
   padding: 1rem 1.5rem;
@@ -1211,7 +1397,12 @@ export default {
   color: white;
 }
 
-.correct-btn:hover, .incorrect-btn:hover, .mastered-btn:hover {
+.normal-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.correct-btn:hover, .incorrect-btn:hover, .mastered-btn:hover, .normal-btn:hover {
   transform: translateY(-2px);
 }
 

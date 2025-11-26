@@ -139,6 +139,9 @@
 
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+// useRouter 是 Vue Router 提供的函数，用于获取路由实例
+// 有了路由实例，才能进行页面跳转
+import { useRouter } from 'vue-router'
 import { useDataStore } from './stores/dataStore'
 import Auth from './components/Auth.vue'
 import authService from './firebase/authService.js'
@@ -150,18 +153,35 @@ export default {
   },
   setup() {
     const dataStore = useDataStore()
+    const router = useRouter() // 获取路由实例，用于页面跳转
     const showAuth = ref(false)
     const showLogs = ref(false)
     const showRefreshQuestion = ref(false)
     const syncTimeInterval = ref(null)
     const isLoggedIn = ref(false)
+    const wasLoggedIn = ref(false) // 记录之前的登录状态，用于检测状态变化
     const logs = ref([])
     const logContent = ref(null)
     const maxLogs = 500 // 最多保存500条日志
     
     // 监听认证状态变化
     authService.onAuthStateChange((user) => {
-      isLoggedIn.value = !!(user && user.uid)
+      const newLoginStatus = !!(user && user.uid)
+      
+      // 检测状态变化：从"未登录"变为"已登录"
+      // wasLoggedIn.value 是之前的状态，newLoginStatus 是当前的状态
+      // 如果之前是 false（未登录），现在是 true（已登录），说明刚刚登录成功
+      if (!wasLoggedIn.value && newLoginStatus) {
+        console.log('检测到登录成功，自动跳转到复习区')
+        // 使用 router.push() 跳转到 /review 路由
+        // 这会改变浏览器地址栏的 URL，并显示复习区页面
+        router.push('/review')
+      }
+      
+      // 更新当前登录状态
+      isLoggedIn.value = newLoginStatus
+      // 保存当前状态，作为下次比较的"之前状态"
+      wasLoggedIn.value = newLoginStatus
       console.log('认证状态变化:', isLoggedIn.value ? '已登录' : '未登录')
     })
     
@@ -400,7 +420,13 @@ export default {
     onMounted(() => {
       // 初始化检查登录状态
       const user = authService.getCurrentUser()
-      isLoggedIn.value = !!(user && user.uid)
+      // 原理：
+      // onMounted：组件挂载时执行
+      // 初始化 wasLoggedIn，避免首次加载时误判
+      const initialLoginStatus = !!(user && user.uid)
+      isLoggedIn.value = initialLoginStatus
+      // 初始化 wasLoggedIn，记录初始登录状态
+      wasLoggedIn.value = initialLoginStatus
       console.log('组件挂载时登录状态:', isLoggedIn.value ? '已登录' : '未登录')
       
       // 页面刷新时显示问题弹窗
