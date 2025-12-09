@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <!-- 页面刷新时的提示弹窗 -->
-    <div v-if="showRefreshQuestion" class="refresh-question-modal" @click="showRefreshQuestion = false">
+    <!-- 页面刷新时的提示弹窗（仅登录后显示） -->
+    <div v-if="isUserLoggedIn && showRefreshQuestion" class="refresh-question-modal" @click="showRefreshQuestion = false">
       <!-- 修改前
       <div class="refresh-question-content" @click.stop>  <!- 内容 -></div>
       问题：@click.stop 阻止了事件冒泡，点击内容区域不会触发父元素的点击事件。
@@ -13,21 +13,19 @@
       父元素的 @click="showRefreshQuestion = false" 会执行，关闭弹窗 -->
 
       <div class="refresh-question-content">
-        <h3>你为什么要学习 "内在的另外一种表达" ？</h3>
+        <h3>你要记住的是内在感觉！！不是翻译！！</h3>
         <p class="question-hint">点击屏幕任何地方关闭</p>
       </div>
     </div>
 
-    <nav class="navbar">
+    <!-- 导航栏（仅登录后显示） -->
+    <nav v-if="isUserLoggedIn" class="navbar">
       <div class="nav-brand">
-        <h1 v-if="!isUserLoggedIn">把内在外在表达出来 log out</h1>
-        <div v-else>
-          <h1>把内在外在表达出来</h1>
-          <div class="user-id-display">
-            <div class="device-info">
-              <span class="device-label">设备ID:</span>
-              <span class="device-id">[{{ deviceId }}]</span>
-            </div>
+        <h1>把内在外在表达出来</h1>
+        <div class="user-id-display">
+          <div class="device-info">
+            <span class="device-label">用户ID:</span>
+            <span class="device-id">[{{ deviceId }}]</span>
           </div>
         </div>
       </div>
@@ -78,19 +76,32 @@
       </div>
     </nav>
     
-    <main class="main-content">
-      <router-view />
-    </main>
-    
-    <!-- 认证弹窗 -->
-    <div v-if="showAuth" class="auth-modal" @click="showAuth = false">
-      <div class="auth-modal-content" @click.stop>
-        <Auth @close="showAuth = false" />
+    <!-- 如果未登录，显示全屏登录界面 -->
+    <div v-if="!isUserLoggedIn" class="login-required-overlay">
+      <div class="login-required-content">
+        <Auth />
+        <div class="login-required-message">
+          <p>🔒 请先使用 Google 账号登录以使用本网站</p>
+        </div>
       </div>
     </div>
     
-    <!-- 日志显示面板 -->
-    <div v-if="showLogs" class="log-panel">
+    <!-- 已登录时显示正常内容 -->
+    <template v-else>
+      <main class="main-content">
+        <router-view />
+      </main>
+      
+      <!-- 认证弹窗 -->
+      <div v-if="showAuth" class="auth-modal" @click="showAuth = false">
+        <div class="auth-modal-content" @click.stop>
+          <Auth @close="showAuth = false" />
+        </div>
+      </div>
+    </template>
+    
+    <!-- 日志显示面板（仅登录后显示） -->
+    <div v-if="isUserLoggedIn && showLogs" class="log-panel">
       <div class="log-header">
         <h3>📋 日志查看器</h3>
         <div class="log-controls">
@@ -108,7 +119,8 @@
       </div>
     </div>
     
-    <nav class="bottom-nav">
+    <!-- 底部导航（仅登录后显示） -->
+    <nav v-if="isUserLoggedIn" class="bottom-nav">
       <router-link to="/" class="nav-item">
         <span class="nav-icon">🏠</span>
         <span class="nav-label">首页</span>
@@ -190,26 +202,25 @@ export default {
       return isLoggedIn.value
     })
     
-    // 获取当前用户ID（现在显示设备ID）
+    // 获取当前用户ID
     const currentUserId = computed(() => {
       if (!isLoggedIn.value) return '未登录'
-      const deviceUserId = authService.getDeviceUserId()
-      if (deviceUserId) {
-        // 显示设备ID（即用户ID）
-        return deviceUserId
+      const userId = authService.getUserId()
+      if (userId) {
+        return userId
       }
       return '未登录'
     })
 
-    // 获取设备ID（现在和用户ID相同）
+    // 获取用户ID（用于显示）
     const deviceId = computed(() => {
-      if (!isLoggedIn.value) return '未知设备'
-      const deviceUserId = authService.getDeviceUserId()
-      if (deviceUserId) {
-        // 显示完整的设备ID（和用户ID相同）
-        return deviceUserId
+      if (!isLoggedIn.value) return '未登录'
+      const userId = authService.getUserId()
+      if (userId) {
+        // 显示用户ID（Firebase UID）
+        return userId.substring(0, 8) + '...'
       }
-      return '未知设备'
+      return '未登录'
     })
     
     // 优化的语言切换
@@ -429,8 +440,15 @@ export default {
       wasLoggedIn.value = initialLoginStatus
       console.log('组件挂载时登录状态:', isLoggedIn.value ? '已登录' : '未登录')
       
-      // 页面刷新时显示问题弹窗
-      showRefreshQuestion.value = true
+      // 如果未登录，自动显示登录界面
+      if (!isLoggedIn.value) {
+        console.log('检测到未登录，显示登录界面')
+      }
+      
+      // 页面刷新时显示问题弹窗（仅登录后显示）
+      if (isLoggedIn.value) {
+        showRefreshQuestion.value = true
+      }
       
       // 设置定时器更新同步时间显示
       syncTimeInterval.value = setInterval(() => {
@@ -1030,6 +1048,44 @@ export default {
 
 .log-btn:hover:not(:disabled) {
   background: rgba(33, 150, 243, 0.4);
+}
+
+/* 登录要求覆盖层 */
+.login-required-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.login-required-content {
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-required-message {
+  text-align: center;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.login-required-message p {
+  margin: 0;
 }
 
 /* 移动端优化 */

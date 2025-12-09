@@ -302,10 +302,10 @@ export const useDataStore = defineStore('data', {
         }
       })
 
-      // 等待设备认证初始化完成
+      // 检查当前认证状态
       const checkAuthStatus = async () => {
         if (authService.isLoggedIn()) {
-          console.log('检测到已认证设备，立即开始同步...')
+          console.log('检测到已登录用户，立即开始同步...')
           this.isOnline = true
           try {
             await this.syncFromCloud()
@@ -321,13 +321,10 @@ export const useDataStore = defineStore('data', {
             // 即使同步失败，也设置实时监听
             this.setupRealtimeSync()
           }
-        } else {
-          // 如果还未认证，等待一段时间后重试
-          setTimeout(checkAuthStatus, 1000)
         }
       }
       
-      // 开始检查认证状态
+      // 立即检查认证状态（不等待，因为 Google 登录是用户主动触发的）
       checkAuthStatus()
     },
 
@@ -377,10 +374,19 @@ export const useDataStore = defineStore('data', {
         return
       }
 
+      // 检查用户ID是否已设置
+      const userId = authService.getUserId()
+      console.log('同步前检查 - 当前用户ID:', userId)
+      if (!userId) {
+        console.error('同步失败：用户ID未设置')
+        throw new Error('用户未认证，无法同步数据')
+      }
+
       try {
         this.syncInProgress = true
         this.syncRetryCount = retryCount
         console.log(`开始从云端获取数据... (尝试 ${retryCount + 1}/${MAX_SYNC_RETRIES})`)
+        console.log('同步用户ID:', userId)
         
         // 使用 Promise.allSettled 确保部分失败不影响其他数据
         const results = await Promise.allSettled([
@@ -1279,7 +1285,34 @@ export const useDataStore = defineStore('data', {
       }
     },
 
-    // 获取数据迁移信息
+    // 复制指定用户的所有数据到当前用户
+    async copyUserData(sourceUserId) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能迁移数据')
+      }
+
+      if (!sourceUserId || sourceUserId.trim() === '') {
+        throw new Error('请输入源用户ID')
+      }
+
+      console.log('开始复制用户数据...')
+      console.log('源用户ID:', sourceUserId)
+      
+      try {
+        const result = await dataService.copyUserData(sourceUserId.trim(), this.currentLanguage)
+        console.log('数据复制完成:', result)
+        
+        // 复制完成后，重新同步数据
+        await this.syncFromCloud()
+        
+        return result
+      } catch (error) {
+        console.error('复制数据失败:', error)
+        throw error
+      }
+    },
+
+    // 获取数据迁移信息（兼容旧接口）
     async getMigrationInfo() {
       if (!this.isOnline) {
         throw new Error('需要网络连接才能获取迁移信息')
@@ -1336,21 +1369,266 @@ export const useDataStore = defineStore('data', {
       }
     },
 
-    // 导出当前数据为JSON（用于手动迁移）
+    // 导出当前数据为JSON（用于手动迁移）- 支持所有语言
     async exportCurrentData() {
       if (!this.isOnline) {
         throw new Error('需要网络连接才能导出数据')
       }
 
-      console.log('导出当前数据...')
+      console.log('导出所有语言的数据...')
+      console.log('支持的语言列表:', this.supportedLanguages.map(l => `${l.name}(${l.code})`).join(', '))
+      
       try {
-        const currentData = {
-          words: this.words,
-          sentences: this.sentences,
-          qa: this.qa,
-          exportTime: new Date().toISOString(),
-          userId: authService.getCurrentUser()?.uid
+        // 获取所有语言的数据
+        const allLanguagesData = {}
+        const languageStats = {}
+        
+        // 使用 Promise.allSettled 确保即使某个语言失败，其他语言也能继续
+        const languagePromises = this.supportedLanguages.map(async (lang) => {
+          try {
+            console.log(`\n========== 开始导出 ${lang.name} (${lang.code}) ==========`)
+            
+            // 分别获取每个类型的数据，使用 Promise.allSettled 确保部分失败不影响其他
+            const [wordsResult, sentencesResult, qaResult] = await Promise.allSettled([
+              dataService.getAllData('words', lang.code),
+              dataService.getAllData('sentences', lang.code),
+              dataService.getAllData('qa', lang.code)
+            ])
+            
+            const words = wordsResult.status === 'fulfilled' ? wordsResult.value : []
+            const sentences = sentencesResult.status === 'fulfilled' ? sentencesResult.value : []
+            const qa = qaResult.status === 'fulfilled' ? qaResult.value : []
+            
+            if (wordsResult.status === 'rejected') {
+              console.warn(`获取 ${lang.name} 单词失败:`, wordsResult.reason)
+            }
+            if (sentencesResult.status === 'rejected') {
+              console.warn(`获取 ${lang.name} 句子失败:`, sentencesResult.reason)
+            }
+            if (qaResult.status === 'rejected') {
+              console.warn(`获取 ${lang.name} 问答失败:`, qaResult.reason)
+            }
+            
+            allLanguagesData[lang.code] = {
+              words: Array.isArray(words) ? words : [],
+              sentences: Array.isArray(sentences) ? sentences : [],
+              qa: Array.isArray(qa) ? qa : []
+            }
+            
+            languageStats[lang.code] = {
+              words: allLanguagesData[lang.code].words.length,
+              sentences: allLanguagesData[lang.code].sentences.length,
+              qa: allLanguagesData[lang.code].qa.length
+            }
+            
+            console.log(`✅ ${lang.name} (${lang.code}) 导出完成:`, {
+              words: languageStats[lang.code].words,
+              sentences: languageStats[lang.code].sentences,
+              qa: languageStats[lang.code].qa
+            })
+            console.log(`========== ${lang.name} 导出结束 ==========\n`)
+            
+            return { lang: lang.code, success: true, stats: languageStats[lang.code] }
+          } catch (error) {
+            console.error(`❌ 导出 ${lang.name} (${lang.code}) 时发生异常:`, error)
+            console.error('错误详情:', {
+              message: error.message,
+              stack: error.stack,
+              code: error.code
+            })
+            
+            // 即使出错也包含该语言（空数据）
+            allLanguagesData[lang.code] = {
+              words: [],
+              sentences: [],
+              qa: []
+            }
+            languageStats[lang.code] = {
+              words: 0,
+              sentences: 0,
+              qa: 0
+            }
+            
+            return { lang: lang.code, success: false, error: error.message }
+          }
+        })
+        
+        // 等待所有语言的数据获取完成
+        const results = await Promise.all(languagePromises)
+        
+        console.log('\n========== 所有语言导出汇总 ==========')
+        results.forEach(result => {
+          if (result.success) {
+            console.log(`✅ ${result.lang}:`, result.stats)
+          } else {
+            console.log(`❌ ${result.lang}: 导出失败 - ${result.error}`)
+          }
+        })
+        console.log('=====================================\n')
+        
+        // 验证所有语言是否都已包含
+        console.log('验证导出数据:', {
+          languagesCount: Object.keys(allLanguagesData).length,
+          languagesKeys: Object.keys(allLanguagesData),
+          expectedLanguages: this.supportedLanguages.map(l => l.code),
+          allIncluded: this.supportedLanguages.every(l => allLanguagesData.hasOwnProperty(l.code))
+        })
+        
+        // 从 reviewProgress 中分离出熟记区和集中复习区的数据
+        const masteredItems = {
+          words: [],
+          sentences: [],
+          qa: []
         }
+        
+        const incorrectItems = {
+          words: [],
+          sentences: [],
+          qa: []
+        }
+        
+        // 提取熟记区的项目（需要从所有语言中查找）
+        Object.keys(this.reviewProgress).forEach(key => {
+          if (key.startsWith('mastered_word_')) {
+            const id = key.replace('mastered_word_', '')
+            // 在所有语言中查找
+            for (const langCode of Object.keys(allLanguagesData)) {
+              const word = allLanguagesData[langCode].words.find(w => w.id === id)
+              if (word) {
+                masteredItems.words.push({
+                  id: word.id,
+                  language: langCode,
+                  japanese: word.japanese,
+                  chinese: word.chinese,
+                  context: word.context || ''
+                })
+                break
+              }
+            }
+          } else if (key.startsWith('mastered_sentence_')) {
+            const id = key.replace('mastered_sentence_', '')
+            for (const langCode of Object.keys(allLanguagesData)) {
+              const sentence = allLanguagesData[langCode].sentences.find(s => s.id === id)
+              if (sentence) {
+                masteredItems.sentences.push({
+                  id: sentence.id,
+                  language: langCode,
+                  japanese: sentence.japanese,
+                  chinese: sentence.chinese,
+                  context: sentence.context || ''
+                })
+                break
+              }
+            }
+          } else if (key.startsWith('mastered_qa_')) {
+            const id = key.replace('mastered_qa_', '')
+            for (const langCode of Object.keys(allLanguagesData)) {
+              const qa = allLanguagesData[langCode].qa.find(q => q.id === id)
+              if (qa) {
+                masteredItems.qa.push({
+                  id: qa.id,
+                  language: langCode,
+                  question: qa.question,
+                  answer: qa.answer
+                })
+                break
+              }
+            }
+          }
+        })
+        
+        // 提取集中复习区的项目
+        Object.keys(this.reviewProgress).forEach(key => {
+          if (key.startsWith('incorrect_word_')) {
+            const id = key.replace('incorrect_word_', '')
+            for (const langCode of Object.keys(allLanguagesData)) {
+              const word = allLanguagesData[langCode].words.find(w => w.id === id)
+              if (word) {
+                incorrectItems.words.push({
+                  id: word.id,
+                  language: langCode,
+                  japanese: word.japanese,
+                  chinese: word.chinese,
+                  context: word.context || ''
+                })
+                break
+              }
+            }
+          } else if (key.startsWith('incorrect_sentence_')) {
+            const id = key.replace('incorrect_sentence_', '')
+            for (const langCode of Object.keys(allLanguagesData)) {
+              const sentence = allLanguagesData[langCode].sentences.find(s => s.id === id)
+              if (sentence) {
+                incorrectItems.sentences.push({
+                  id: sentence.id,
+                  language: langCode,
+                  japanese: sentence.japanese,
+                  chinese: sentence.chinese,
+                  context: sentence.context || ''
+                })
+                break
+              }
+            }
+          } else if (key.startsWith('incorrect_qa_')) {
+            const id = key.replace('incorrect_qa_', '')
+            for (const langCode of Object.keys(allLanguagesData)) {
+              const qa = allLanguagesData[langCode].qa.find(q => q.id === id)
+              if (qa) {
+                incorrectItems.qa.push({
+                  id: qa.id,
+                  language: langCode,
+                  question: qa.question,
+                  answer: qa.answer
+                })
+                break
+              }
+            }
+          }
+        })
+        
+        // 最终验证：确保所有支持的语言都在导出数据中
+        const finalLanguagesData = {}
+        for (const lang of this.supportedLanguages) {
+          if (allLanguagesData[lang.code]) {
+            finalLanguagesData[lang.code] = allLanguagesData[lang.code]
+          } else {
+            console.warn(`警告：语言 ${lang.code} 的数据未获取，使用空数据`)
+            finalLanguagesData[lang.code] = {
+              words: [],
+              sentences: [],
+              qa: []
+            }
+          }
+        }
+        
+        const currentData = {
+          // 所有语言的数据（确保包含所有支持的语言）
+          languages: finalLanguagesData,
+          // 语言统计信息
+          languageStats: languageStats,
+          // 支持的语言列表
+          supportedLanguages: this.supportedLanguages,
+          reviewProgress: this.reviewProgress, // 完整的复习进度（包含所有时间戳和标记）
+          // 熟记区数据（已熟记的项目）
+          masteredItems: masteredItems,
+          // 集中复习区数据（没记住的项目）
+          incorrectItems: incorrectItems,
+          exportTime: new Date().toISOString(),
+          userId: authService.getUserId(),
+          exportVersion: '3.0', // 版本号，用于标识支持多语言的导出格式
+          exportNote: '此导出包含所有语言的完整数据，以及分离的熟记区和集中复习区数据'
+        }
+        
+        // 最终验证导出数据
+        console.log('\n========== 最终导出数据验证 ==========')
+        console.log('包含的语言:', Object.keys(currentData.languages))
+        console.log('语言数据统计:', Object.keys(currentData.languages).map(lang => ({
+          lang,
+          words: currentData.languages[lang].words.length,
+          sentences: currentData.languages[lang].sentences.length,
+          qa: currentData.languages[lang].qa.length
+        })))
+        console.log('=====================================\n')
         
         const jsonData = JSON.stringify(currentData, null, 2)
         
@@ -1379,18 +1657,111 @@ export const useDataStore = defineStore('data', {
 
     // 导出所有数据
     exportData() {
+      // 从 reviewProgress 中分离出熟记区和集中复习区的数据
+      const masteredItems = {
+        words: [],
+        sentences: [],
+        qa: []
+      }
+      
+      const incorrectItems = {
+        words: [],
+        sentences: [],
+        qa: []
+      }
+      
+      // 提取熟记区的项目
+      Object.keys(this.reviewProgress).forEach(key => {
+        if (key.startsWith('mastered_word_')) {
+          const id = key.replace('mastered_word_', '')
+          const word = this.words.find(w => w.id === id)
+          if (word) {
+            masteredItems.words.push({
+              id: word.id,
+              japanese: word.japanese,
+              chinese: word.chinese,
+              context: word.context || ''
+            })
+          }
+        } else if (key.startsWith('mastered_sentence_')) {
+          const id = key.replace('mastered_sentence_', '')
+          const sentence = this.sentences.find(s => s.id === id)
+          if (sentence) {
+            masteredItems.sentences.push({
+              id: sentence.id,
+              japanese: sentence.japanese,
+              chinese: sentence.chinese,
+              context: sentence.context || ''
+            })
+          }
+        } else if (key.startsWith('mastered_qa_')) {
+          const id = key.replace('mastered_qa_', '')
+          const qa = this.qa.find(q => q.id === id)
+          if (qa) {
+            masteredItems.qa.push({
+              id: qa.id,
+              question: qa.question,
+              answer: qa.answer
+            })
+          }
+        }
+      })
+      
+      // 提取集中复习区的项目
+      Object.keys(this.reviewProgress).forEach(key => {
+        if (key.startsWith('incorrect_word_')) {
+          const id = key.replace('incorrect_word_', '')
+          const word = this.words.find(w => w.id === id)
+          if (word) {
+            incorrectItems.words.push({
+              id: word.id,
+              japanese: word.japanese,
+              chinese: word.chinese,
+              context: word.context || ''
+            })
+          }
+        } else if (key.startsWith('incorrect_sentence_')) {
+          const id = key.replace('incorrect_sentence_', '')
+          const sentence = this.sentences.find(s => s.id === id)
+          if (sentence) {
+            incorrectItems.sentences.push({
+              id: sentence.id,
+              japanese: sentence.japanese,
+              chinese: sentence.chinese,
+              context: sentence.context || ''
+            })
+          }
+        } else if (key.startsWith('incorrect_qa_')) {
+          const id = key.replace('incorrect_qa_', '')
+          const qa = this.qa.find(q => q.id === id)
+          if (qa) {
+            incorrectItems.qa.push({
+              id: qa.id,
+              question: qa.question,
+              answer: qa.answer
+            })
+          }
+        }
+      })
+      
       const allData = {
         words: this.words,
         sentences: this.sentences,
         qa: this.qa,
-        reviewProgress: this.reviewProgress,
+        reviewProgress: this.reviewProgress, // 完整的复习进度（包含所有时间戳和标记）
+        // 熟记区数据（已熟记的项目）
+        masteredItems: masteredItems,
+        // 集中复习区数据（没记住的项目）
+        incorrectItems: incorrectItems,
         quizHistory: this.quizHistory,
-        exportDate: new Date().toISOString()
+        exportDate: new Date().toISOString(),
+        exportVersion: '2.0', // 版本号，用于标识新的导出格式
+        exportNote: '此导出包含完整的复习进度数据，以及分离的熟记区和集中复习区数据'
       }
       return JSON.stringify(allData, null, 2)
     },
 
-    // 导入数据
+    // 导入数据（支持所有语言）
     async importData(jsonData) {
       try {
         const data = JSON.parse(jsonData)
@@ -1401,12 +1772,6 @@ export const useDataStore = defineStore('data', {
         }
         
         console.log('开始导入数据到云端...')
-        console.log('当前语言:', this.currentLanguage)
-        console.log('数据统计:', {
-          words: data.words?.length || 0,
-          sentences: data.sentences?.length || 0,
-          qa: data.qa?.length || 0
-        })
         
         // 处理时间戳格式转换
         const processTimestamps = (items) => {
@@ -1427,76 +1792,186 @@ export const useDataStore = defineStore('data', {
           })
         }
         
-        // 导入单词数据
-        if (data.words && data.words.length > 0) {
-          console.log('导入单词数据:', data.words.length, '个')
-          const processedWords = processTimestamps(data.words)
+        // 检查是否是新格式（包含 languages 字段）
+        if (data.languages && typeof data.languages === 'object') {
+          // 新格式：支持多语言
+          console.log('检测到多语言格式，开始导入所有语言的数据...')
           
-          // 批量上传到云端
-          for (const word of processedWords) {
-            try {
-              // 检查是否重复
-              if (!this.isWordDuplicate(word)) {
-                await dataService.addData('words', {
-                  japanese: word.japanese,
-                  chinese: word.chinese,
-                  context: word.context || ''
-                }, this.currentLanguage)
-                console.log('单词导入成功:', word.japanese)
-              } else {
-                console.log('跳过重复单词:', word.japanese)
+          const importStats = {}
+          
+          // 导入每个语言的数据
+          for (const langCode of Object.keys(data.languages)) {
+            const langData = data.languages[langCode]
+            importStats[langCode] = {
+              words: 0,
+              sentences: 0,
+              qa: 0,
+              skipped: { words: 0, sentences: 0, qa: 0 }
+            }
+            
+            console.log(`导入 ${langCode} 语言的数据...`)
+            
+            // 导入单词
+            if (langData.words && langData.words.length > 0) {
+              const processedWords = processTimestamps(langData.words)
+              for (const word of processedWords) {
+                try {
+                  // 临时切换语言以检查重复
+                  const originalLang = this.currentLanguage
+                  this.currentLanguage = langCode
+                  const isDuplicate = this.isWordDuplicate(word)
+                  this.currentLanguage = originalLang
+                  
+                  if (!isDuplicate) {
+                    await dataService.addData('words', {
+                      japanese: word.japanese,
+                      chinese: word.chinese,
+                      context: word.context || ''
+                    }, langCode)
+                    importStats[langCode].words++
+                    console.log(`[${langCode}] 单词导入成功:`, word.japanese)
+                  } else {
+                    importStats[langCode].skipped.words++
+                    console.log(`[${langCode}] 跳过重复单词:`, word.japanese)
+                  }
+                } catch (error) {
+                  console.warn(`[${langCode}] 单词导入失败:`, word, error)
+                }
               }
-            } catch (error) {
-              console.warn('单词导入失败:', word, error)
+            }
+            
+            // 导入句子
+            if (langData.sentences && langData.sentences.length > 0) {
+              const processedSentences = processTimestamps(langData.sentences)
+              for (const sentence of processedSentences) {
+                try {
+                  const originalLang = this.currentLanguage
+                  this.currentLanguage = langCode
+                  const isDuplicate = this.isSentenceDuplicate(sentence)
+                  this.currentLanguage = originalLang
+                  
+                  if (!isDuplicate) {
+                    await dataService.addData('sentences', {
+                      japanese: sentence.japanese,
+                      chinese: sentence.chinese,
+                      context: sentence.context || ''
+                    }, langCode)
+                    importStats[langCode].sentences++
+                    console.log(`[${langCode}] 句子导入成功:`, sentence.japanese)
+                  } else {
+                    importStats[langCode].skipped.sentences++
+                    console.log(`[${langCode}] 跳过重复句子:`, sentence.japanese)
+                  }
+                } catch (error) {
+                  console.warn(`[${langCode}] 句子导入失败:`, sentence, error)
+                }
+              }
+            }
+            
+            // 导入问答
+            if (langData.qa && langData.qa.length > 0) {
+              const processedQA = processTimestamps(langData.qa)
+              for (const qa of processedQA) {
+                try {
+                  const originalLang = this.currentLanguage
+                  this.currentLanguage = langCode
+                  const isDuplicate = this.isQADuplicate(qa)
+                  this.currentLanguage = originalLang
+                  
+                  if (!isDuplicate) {
+                    await dataService.addData('qa', {
+                      question: qa.question,
+                      answer: qa.answer
+                    }, langCode)
+                    importStats[langCode].qa++
+                    console.log(`[${langCode}] 问答导入成功:`, qa.question)
+                  } else {
+                    importStats[langCode].skipped.qa++
+                    console.log(`[${langCode}] 跳过重复问答:`, qa.question)
+                  }
+                } catch (error) {
+                  console.warn(`[${langCode}] 问答导入失败:`, qa, error)
+                }
+              }
+            }
+            
+            console.log(`${langCode} 语言导入完成:`, importStats[langCode])
+          }
+          
+          console.log('所有语言数据导入完成，统计:', importStats)
+        } else {
+          // 旧格式：单语言数据（向后兼容）
+          console.log('检测到单语言格式，导入到当前语言:', this.currentLanguage)
+          const targetLanguage = data.currentLanguage || this.currentLanguage
+          
+          // 导入单词数据
+          if (data.words && data.words.length > 0) {
+            console.log('导入单词数据:', data.words.length, '个')
+            const processedWords = processTimestamps(data.words)
+            
+            for (const word of processedWords) {
+              try {
+                const wordLanguage = word.language || targetLanguage
+                if (!this.isWordDuplicate(word)) {
+                  await dataService.addData('words', {
+                    japanese: word.japanese,
+                    chinese: word.chinese,
+                    context: word.context || ''
+                  }, wordLanguage)
+                  console.log('单词导入成功:', word.japanese)
+                } else {
+                  console.log('跳过重复单词:', word.japanese)
+                }
+              } catch (error) {
+                console.warn('单词导入失败:', word, error)
+              }
             }
           }
-        }
-        
-        // 导入句子数据
-        if (data.sentences && data.sentences.length > 0) {
-          console.log('导入句子数据:', data.sentences.length, '个')
-          const processedSentences = processTimestamps(data.sentences)
           
-          // 批量上传到云端
-          for (const sentence of processedSentences) {
-            try {
-              // 检查是否重复
-              if (!this.isSentenceDuplicate(sentence)) {
-                await dataService.addData('sentences', {
-                  japanese: sentence.japanese,
-                  chinese: sentence.chinese,
-                  context: sentence.context || ''
-                }, this.currentLanguage)
-                console.log('句子导入成功:', sentence.japanese)
-              } else {
-                console.log('跳过重复句子:', sentence.japanese)
+          // 导入句子数据
+          if (data.sentences && data.sentences.length > 0) {
+            console.log('导入句子数据:', data.sentences.length, '个')
+            const processedSentences = processTimestamps(data.sentences)
+            
+            for (const sentence of processedSentences) {
+              try {
+                const sentenceLanguage = sentence.language || targetLanguage
+                if (!this.isSentenceDuplicate(sentence)) {
+                  await dataService.addData('sentences', {
+                    japanese: sentence.japanese,
+                    chinese: sentence.chinese,
+                    context: sentence.context || ''
+                  }, sentenceLanguage)
+                  console.log('句子导入成功:', sentence.japanese)
+                } else {
+                  console.log('跳过重复句子:', sentence.japanese)
+                }
+              } catch (error) {
+                console.warn('句子导入失败:', sentence, error)
               }
-            } catch (error) {
-              console.warn('句子导入失败:', sentence, error)
             }
           }
-        }
-        
-        // 导入问答数据
-        if (data.qa && data.qa.length > 0) {
-          console.log('导入问答数据:', data.qa.length, '个')
-          const processedQA = processTimestamps(data.qa)
           
-          // 批量上传到云端
-          for (const qa of processedQA) {
-            try {
-              // 检查是否重复
-              if (!this.isQADuplicate(qa)) {
-                await dataService.addData('qa', {
-                  question: qa.question,
-                  answer: qa.answer
-                }, this.currentLanguage)
-                console.log('问答导入成功:', qa.question)
-              } else {
-                console.log('跳过重复问答:', qa.question)
+          // 导入问答数据
+          if (data.qa && data.qa.length > 0) {
+            console.log('导入问答数据:', data.qa.length, '个')
+            const processedQA = processTimestamps(data.qa)
+            
+            for (const qa of processedQA) {
+              try {
+                const qaLanguage = qa.language || targetLanguage
+                if (!this.isQADuplicate(qa)) {
+                  await dataService.addData('qa', {
+                    question: qa.question,
+                    answer: qa.answer
+                  }, qaLanguage)
+                  console.log('问答导入成功:', qa.question)
+                } else {
+                  console.log('跳过重复问答:', qa.question)
+                }
+              } catch (error) {
+                console.warn('问答导入失败:', qa, error)
               }
-            } catch (error) {
-              console.warn('问答导入失败:', qa, error)
             }
           }
         }
@@ -1512,12 +1987,6 @@ export const useDataStore = defineStore('data', {
         }
         
         console.log('数据导入完成')
-        console.log('导入统计:', {
-          words: data.words?.length || 0,
-          sentences: data.sentences?.length || 0,
-          qa: data.qa?.length || 0,
-          language: this.currentLanguage
-        })
         return true
       } catch (error) {
         console.error('导入数据失败:', error)

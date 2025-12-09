@@ -218,21 +218,16 @@ export default {
       // 数据初始化已移至登录后的云端同步流程中
     })
 
-    // 导出数据
-    const exportData = () => {
-      const data = dataStore.exportData()
-      // 使用 TextEncoder 确保 UTF-8 编码，解决 iPad Chrome 上的字符编码问题
-      const encoder = new TextEncoder()
-      const utf8Data = encoder.encode(data)
-      const blob = new Blob([utf8Data], { type: 'application/json;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `japanese-learning-data-${new Date().toISOString().split('T')[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+    // 导出数据（支持所有语言）
+    const exportData = async () => {
+      try {
+        // 使用 exportCurrentData() 导出所有语言的数据
+        await dataStore.exportCurrentData()
+        console.log('所有语言数据导出完成')
+      } catch (error) {
+        console.error('导出失败:', error)
+        alert(`导出失败: ${error.message}`)
+      }
     }
 
     // 导入数据

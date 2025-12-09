@@ -29,9 +29,22 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫 - 处理语言切换
+// 路由守卫 - 检查登录状态和语言切换
+import authService from './firebase/authService.js'
+
 router.beforeEach((to, from, next) => {
   const dataStore = useDataStore()
+  
+  // 检查用户是否已登录
+  const isLoggedIn = authService.isLoggedIn()
+  
+  // 如果未登录，允许路由继续（App.vue 会显示登录界面并阻止访问内容）
+  if (!isLoggedIn) {
+    console.log('未登录，App.vue 将显示登录界面')
+    // 允许路由继续，但 App.vue 会显示全屏登录界面
+    next()
+    return
+  }
   
   // 检查是否是语言路由
   const languageMap = {

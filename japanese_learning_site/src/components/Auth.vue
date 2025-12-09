@@ -7,59 +7,23 @@
       </p>
       
       <div v-if="!isLoggedIn" class="auth-options">
-        <div v-if="autoLoginInProgress" class="auto-login-status">
-          <div class="loading-spinner"></div>
-          <p>正在自动登录...</p>
-          <small>首次使用需要几秒钟时间</small>
-        </div>
-        
-        <div v-else>
+        <div class="google-auth">
           <button 
-            @click="signInAnonymously" 
-            class="auth-btn primary"
+            @click="signInWithGoogle" 
+            class="auth-btn google-btn"
             :disabled="loading"
           >
-            {{ loading ? '登录中...' : '快速登录（推荐）' }}
+            <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            {{ loading ? '登录中...' : '使用 Google 登录' }}
           </button>
         </div>
-        
         <div class="auth-note">
-          <small>💡 如果快速登录失败，请使用邮箱登录</small>
-        </div>
-        
-        <div class="divider">
-          <span>或</span>
-        </div>
-        
-        <div class="email-auth">
-          <input 
-            v-model="email" 
-            type="email" 
-            placeholder="邮箱地址"
-            class="auth-input"
-          >
-          <input 
-            v-model="password" 
-            type="password" 
-            placeholder="密码"
-            class="auth-input"
-          >
-          <div class="auth-buttons">
-            <button 
-              @click="signInWithEmail" 
-              class="auth-btn secondary"
-              :disabled="loading || !email || !password"
-            >
-              登录
-            </button>
-            <button 
-              @click="signUpWithEmail" 
-              class="auth-btn secondary"
-              :disabled="loading || !email || !password"
-            >
-              注册
-            </button>
-          </div>
+          <small>💡 点击"使用 Google 登录"按钮后，会弹出 Google 登录窗口，请在弹出窗口中输入您的 Google 账号和密码</small>
         </div>
       </div>
       
@@ -67,6 +31,14 @@
         <div class="user-status">
           <div class="status-indicator online"></div>
           <span>已连接到云端</span>
+        </div>
+        <div v-if="currentUserId" class="user-id-info">
+          <span class="user-id-label">用户ID:</span>
+          <span class="user-id-value">{{ currentUserId }}</span>
+        </div>
+        <div v-if="userEmail" class="user-email-info">
+          <span class="user-email-label">邮箱:</span>
+          <span class="user-email-value">{{ userEmail }}</span>
         </div>
         <div v-if="lastSyncTime" class="sync-info">
           最后同步：{{ formatTime(lastSyncTime) }}
@@ -78,9 +50,22 @@
           <button @click="manualSync" class="auth-btn secondary" :disabled="syncInProgress">
             {{ syncInProgress ? '同步中...' : '手动同步' }}
           </button>
-          <button @click="getMigrationInfo" class="auth-btn warning" :disabled="syncInProgress">
-            {{ syncInProgress ? '获取中...' : '数据迁移' }}
-          </button>
+          <div class="migration-section">
+            <input 
+              v-model="sourceUserId" 
+              type="text" 
+              placeholder="输入源用户ID (如: device_r271tk)"
+              class="migration-input"
+              :disabled="migrationInProgress"
+            >
+            <button 
+              @click="copyUserData" 
+              class="auth-btn warning" 
+              :disabled="syncInProgress || migrationInProgress || !sourceUserId"
+            >
+              {{ migrationInProgress ? '迁移中...' : '数据迁移' }}
+            </button>
+          </div>
           <button @click="signOut" class="auth-btn danger">
             退出登录
           </button>
@@ -103,52 +88,47 @@ export default {
   name: 'Auth',
   setup() {
     const dataStore = useDataStore()
-    const email = ref('')
-    const password = ref('')
     const loading = ref(false)
     const error = ref('')
-    const autoLoginInProgress = ref(false)
+    const sourceUserId = ref('')
+    const migrationInProgress = ref(false)
 
     const isLoggedIn = computed(() => dataStore.isOnline)
     const lastSyncTime = computed(() => dataStore.lastSyncTime)
     const syncInProgress = computed(() => dataStore.syncInProgress)
+    const currentUserId = computed(() => {
+      const user = authService.getCurrentUser()
+      return user?.uid || null
+    })
+    const userEmail = computed(() => {
+      const user = authService.getCurrentUser()
+      return user?.email || null
+    })
 
-    const signInAnonymously = async () => {
+    const signInWithGoogle = async () => {
       loading.value = true
       error.value = ''
       try {
-        console.log('开始匿名登录...')
-        const user = await authService.signInAnonymously()
-        console.log('登录成功:', user)
+        console.log('开始 Google 登录...')
+        console.log('注意：将弹出 Google 登录窗口，请在弹出窗口中输入您的 Google 账号和密码')
+        
+        // 添加提示信息
+        error.value = '正在打开 Google 登录窗口，请在弹出的窗口中输入您的 Google 账号和密码...'
+        
+        const user = await authService.signInWithGoogle()
+        console.log('Google 登录成功:', user)
+        error.value = '' // 登录成功后清除提示
       } catch (err) {
-        console.error('登录失败详情:', err)
-        error.value = `登录失败: ${err.message || '请检查网络连接和 Firebase 配置'}`
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const signInWithEmail = async () => {
-      loading.value = true
-      error.value = ''
-      try {
-        await authService.signInWithEmail(email.value, password.value)
-      } catch (err) {
-        error.value = '登录失败，请检查邮箱和密码'
-        console.error(err)
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const signUpWithEmail = async () => {
-      loading.value = true
-      error.value = ''
-      try {
-        await authService.signUpWithEmail(email.value, password.value)
-      } catch (err) {
-        error.value = '注册失败，请重试'
-        console.error(err)
+        console.error('Google 登录失败详情:', err)
+        if (err.code === 'auth/popup-closed-by-user') {
+          error.value = '❌ 登录窗口已关闭。请重新点击"使用 Google 登录"按钮，然后在弹出的窗口中输入您的 Google 账号和密码。'
+        } else if (err.code === 'auth/popup-blocked') {
+          error.value = '❌ 登录窗口被浏览器阻止。请：\n1. 允许此网站的弹出窗口\n2. 重新点击"使用 Google 登录"按钮\n3. 在弹出的窗口中输入您的 Google 账号和密码'
+        } else if (err.code === 'auth/unauthorized-domain') {
+          error.value = '❌ 未授权的域名。请检查 Firebase 配置中的授权域名设置。'
+        } else {
+          error.value = `❌ 登录失败: ${err.message || '请检查网络连接和 Firebase 配置'}\n\n如果未看到登录窗口，请检查浏览器是否阻止了弹出窗口。`
+        }
       } finally {
         loading.value = false
       }
@@ -177,29 +157,46 @@ export default {
       }
     }
 
-    const getMigrationInfo = async () => {
-      loading.value = true
+    const copyUserData = async () => {
+      if (!sourceUserId.value || sourceUserId.value.trim() === '') {
+        error.value = '请输入源用户ID'
+        return
+      }
+
+      migrationInProgress.value = true
       error.value = ''
+      
       try {
-        const migrationInfo = await dataStore.getMigrationInfo()
-        console.log('迁移信息获取成功:', migrationInfo)
+        console.log('开始复制用户数据，源用户ID:', sourceUserId.value)
+        const result = await dataStore.copyUserData(sourceUserId.value.trim())
+        console.log('数据复制成功:', result)
         
-        // 显示迁移信息
-        const info = `
-当前用户ID: ${migrationInfo.currentUserId}
-当前数据: 单词${migrationInfo.currentData.words}个, 句子${migrationInfo.currentData.sentences}个, 问答${migrationInfo.currentData.qa}个
-
-手动迁移步骤:
-${migrationInfo.instructions.join('\n')}
-
-请按照上述步骤在Firebase控制台手动迁移数据。
-        `
-        error.value = info
+        const successMsg = `数据迁移成功！\n\n` +
+          `已复制:\n` +
+          `- 单词: ${result.copied.words} 个\n` +
+          `- 句子: ${result.copied.sentences} 个\n` +
+          `- 问答: ${result.copied.qa} 个\n\n` +
+          `源用户数据:\n` +
+          `- 单词: ${result.source.words} 个\n` +
+          `- 句子: ${result.source.sentences} 个\n` +
+          `- 问答: ${result.source.qa} 个`
+        
+        if (result.copied.skipped.words > 0 || result.copied.skipped.sentences > 0 || result.copied.skipped.qa > 0) {
+          error.value = successMsg + `\n\n跳过（可能重复）:\n` +
+            `- 单词: ${result.copied.skipped.words} 个\n` +
+            `- 句子: ${result.copied.skipped.sentences} 个\n` +
+            `- 问答: ${result.copied.skipped.qa} 个`
+        } else {
+          error.value = successMsg
+        }
+        
+        // 清空输入框
+        sourceUserId.value = ''
       } catch (err) {
-        error.value = `获取迁移信息失败: ${err.message}`
-        console.error('获取迁移信息失败:', err)
+        error.value = `数据迁移失败: ${err.message}`
+        console.error('数据迁移失败:', err)
       } finally {
-        loading.value = false
+        migrationInProgress.value = false
       }
     }
 
@@ -211,39 +208,22 @@ ${migrationInfo.instructions.join('\n')}
     onMounted(() => {
       // 初始化云端同步
       dataStore.initializeCloudSync()
-      
-      // 检查是否需要自动登录
-      if (!isLoggedIn.value) {
-        autoLoginInProgress.value = true
-        
-        // 延迟一点时间显示自动登录状态
-        setTimeout(async () => {
-          try {
-            await authService.autoLogin()
-          } catch (error) {
-            console.error('自动登录失败:', error)
-          } finally {
-            autoLoginInProgress.value = false
-          }
-        }, 500)
-      }
     })
 
     return {
-      email,
-      password,
       loading,
       error,
-      autoLoginInProgress,
+      sourceUserId,
+      migrationInProgress,
       isLoggedIn,
       lastSyncTime,
       syncInProgress,
-      signInAnonymously,
-      signInWithEmail,
-      signUpWithEmail,
+      currentUserId,
+      userEmail,
+      signInWithGoogle,
       signOut,
       manualSync,
-      getMigrationInfo,
+      copyUserData,
       formatTime
     }
   }
@@ -258,6 +238,13 @@ ${migrationInfo.instructions.join('\n')}
   min-height: 100vh;
   padding: 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 当Auth组件在login-required-overlay中使用时，移除背景和最小高度 */
+.login-required-overlay .auth-container {
+  background: transparent;
+  min-height: auto;
+  padding: 0;
 }
 
 .auth-card {
@@ -298,14 +285,24 @@ ${migrationInfo.instructions.join('\n')}
   transition: all 0.3s ease;
 }
 
-.auth-btn.primary {
-  background: #4CAF50;
-  color: white;
+.google-btn {
+  background: white;
+  color: #333;
+  border: 1px solid #dadce0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
 }
 
-.auth-btn.primary:hover:not(:disabled) {
-  background: #45a049;
-  transform: translateY(-2px);
+.google-btn:hover:not(:disabled) {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+.google-icon {
+  flex-shrink: 0;
 }
 
 .auth-btn.secondary {
@@ -409,6 +406,32 @@ ${migrationInfo.instructions.join('\n')}
   background: #4CAF50;
 }
 
+.user-id-info,
+.user-email-info {
+  color: #666;
+  font-size: 12px;
+  margin-bottom: 8px;
+  text-align: left;
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  word-break: break-all;
+}
+
+.user-id-label,
+.user-email-label {
+  font-weight: 500;
+  color: #999;
+  margin-right: 8px;
+}
+
+.user-id-value,
+.user-email-value {
+  color: #333;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+}
+
 .sync-info {
   color: #666;
   font-size: 14px;
@@ -427,8 +450,14 @@ ${migrationInfo.instructions.join('\n')}
   padding: 12px;
   border-radius: 8px;
   margin-top: 15px;
-  text-align: center;
+  text-align: left;
   font-size: 14px;
+  white-space: pre-line;
+  line-height: 1.6;
+}
+
+.error-message:empty {
+  display: none;
 }
 
 .auto-login-status {
@@ -459,12 +488,39 @@ ${migrationInfo.instructions.join('\n')}
 
 .sync-controls {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-top: 15px;
 }
 
 .sync-controls .auth-btn {
   flex: 1;
+}
+
+.migration-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.migration-input {
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.migration-input:focus {
+  outline: none;
+  border-color: #ff9800;
+}
+
+.migration-input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
 }
 
 .auth-btn.warning {
