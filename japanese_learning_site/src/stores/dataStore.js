@@ -3,6 +3,8 @@ import { defineStore } from 'pinia'
 import dataService from '../firebase/dataService.js'
 import authService from '../firebase/authService.js'
 import { defaultData } from '../data/defaultData.js'
+import { getDataOwnerId } from '../utils/dataOwnerId.js'
+import { getOrCreateDataOwnerId } from '../utils/dataOwnerId.js'
 
 // 常量定义
 const SYNC_RETRY_DELAY = 1000
@@ -265,67 +267,47 @@ export const useDataStore = defineStore('data', {
     },
 
 
-    // 初始化云端同步
+    // 初始化云端同步（基于 dataOwnerId，必须通过 Google 登录获得）
     async initializeCloudSync() {
-      // 首先从 localStorage 加载语言列表
+      // 1. 从 localStorage 加载本地语言和复习进度
       this.loadLanguagesFromLocal()
-      // 然后从 localStorage 加载复习进度（包括集中复习区的数据）
       this.loadReviewProgressFromLocal()
-      
-      // 设置认证状态监听器
-      authService.setupAuthStateListener()
-      
-      // 监听认证状态变化
-      authService.onAuthStateChange(async (user) => {
-        console.log('认证状态变化:', user ? '已登录' : '未登录')
-        if (user) {
-          this.isOnline = true
-          console.log('开始云端同步...')
-          try {
-            await this.syncFromCloud()
-            this.setupRealtimeSync()
-            console.log('云端同步完成，实时监听已启动')
-            
-            // 同步完成后，检查是否需要初始化默认数据
-            if (!this.hasInitialData) {
-              console.log('检测到无数据，开始初始化默认数据...')
-              await this.initializeDefaultData()
-            }
-          } catch (error) {
-            console.error('云端同步失败:', error)
-            // 即使同步失败，也设置实时监听
-            this.setupRealtimeSync()
-          }
-        } else {
-          this.isOnline = false
-          console.log('设备未认证，停止云端同步')
-        }
-      })
 
-      // 检查当前认证状态
-      const checkAuthStatus = async () => {
-        if (authService.isLoggedIn()) {
-          console.log('检测到已登录用户，立即开始同步...')
-          this.isOnline = true
-          try {
-            await this.syncFromCloud()
-            this.setupRealtimeSync()
-            
-            // 同步完成后，检查是否需要初始化默认数据
-            if (!this.hasInitialData) {
-              console.log('检测到无数据，开始初始化默认数据...')
-              await this.initializeDefaultData()
-            }
-          } catch (error) {
-            console.error('初始同步失败:', error)
-            // 即使同步失败，也设置实时监听
-            this.setupRealtimeSync()
-          }
+      // 2. 检查是否有 dataOwnerId（必须通过 Google 登录获得）
+      const ownerId = getDataOwnerId()
+      if (!ownerId) {
+        console.log('未找到 dataOwnerId，需要先进行 Google 登录')
+        this.isOnline = false
+        return
+      }
+
+      console.log('使用 dataOwnerId 作为云端用户ID:', ownerId)
+      dataService.setUserId(ownerId)
+
+      // 3. 标记为“已连接云端”（此处只表示可以访问 Firestore）
+      this.isOnline = true
+
+      // 4. 从云端同步并设置实时监听
+      try {
+        console.log('开始基于 dataOwnerId 的云端同步...')
+        await this.syncFromCloud()
+        this.setupRealtimeSync()
+        console.log('云端同步完成，实时监听已启动')
+
+        // 同步完成后，如无数据则初始化默认数据
+        if (!this.hasInitialData) {
+          console.log('检测到无数据，开始初始化默认数据...')
+          await this.initializeDefaultData()
+        }
+      } catch (error) {
+        console.error('云端同步失败:', error)
+        // 即使同步失败，也尽量设置实时监听，避免完全不可用
+        try {
+          this.setupRealtimeSync()
+        } catch (e) {
+          console.error('设置实时监听失败:', e)
         }
       }
-      
-      // 立即检查认证状态（不等待，因为 Google 登录是用户主动触发的）
-      checkAuthStatus()
     },
 
     // 设置实时同步
@@ -374,12 +356,12 @@ export const useDataStore = defineStore('data', {
         return
       }
 
-      // 检查用户ID是否已设置
-      const userId = authService.getUserId()
-      console.log('同步前检查 - 当前用户ID:', userId)
+      // 检查 dataService.userId 是否已设置
+      const userId = dataService.userId
+      console.log('同步前检查 - 当前 dataOwnerId:', userId)
       if (!userId) {
-        console.error('同步失败：用户ID未设置')
-        throw new Error('用户未认证，无法同步数据')
+        console.error('同步失败：dataOwnerId 未设置')
+        throw new Error('dataOwnerId 未设置，无法同步数据')
       }
 
       try {

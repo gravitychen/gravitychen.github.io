@@ -1,10 +1,13 @@
 <template>
   <div class="auth-container">
     <div class="auth-card">
-      <h2>数据同步</h2>
-      <p class="auth-description">
-        登录后，你的学习数据将在所有设备间自动同步
-      </p>
+      <div class="card-header">
+        <div class="header-icon">☁️</div>
+        <h2>数据同步</h2>
+        <p class="auth-description">
+          登录后，你的学习数据将在所有设备间自动同步
+        </p>
+      </div>
       
       <div v-if="!isLoggedIn" class="auth-options">
         <div class="google-auth">
@@ -19,61 +22,106 @@
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            {{ loading ? '登录中...' : '使用 Google 登录' }}
+            <span>{{ loading ? '登录中...' : '使用 Google 登录' }}</span>
+            <span v-if="loading" class="loading-dots">
+              <span>.</span><span>.</span><span>.</span>
+            </span>
           </button>
         </div>
         <div class="auth-note">
-          <small>💡 点击"使用 Google 登录"按钮后，会弹出 Google 登录窗口，请在弹出窗口中输入您的 Google 账号和密码</small>
+          <div class="note-icon">💡</div>
+          <small>点击"使用 Google 登录"按钮后，会弹出 Google 登录窗口，请在弹出窗口中输入您的 Google 账号和密码</small>
         </div>
       </div>
       
       <div v-else class="user-info">
-        <div class="user-status">
-          <div class="status-indicator online"></div>
-          <span>已连接到云端</span>
+        <!-- 连接状态卡片 -->
+        <div class="status-card">
+          <div class="status-header">
+            <div class="status-indicator-wrapper">
+              <div class="status-indicator online" :class="{ 'pulsing': !syncInProgress }"></div>
+              <span class="status-text">{{ syncInProgress ? '同步中...' : '已连接到云端' }}</span>
+            </div>
+            <div v-if="lastSyncTime" class="sync-time-badge">
+              <span class="time-icon">🕐</span>
+              <span>{{ formatTime(lastSyncTime) }}</span>
+            </div>
+          </div>
         </div>
-        <div v-if="currentUserId" class="user-id-info">
-          <span class="user-id-label">用户ID:</span>
-          <span class="user-id-value">{{ currentUserId }}</span>
+
+        <!-- 用户信息卡片 -->
+        <div class="info-cards">
+          <div v-if="currentUserId && currentUserId !== '未设置'" class="info-card">
+            <div class="info-icon">🆔</div>
+            <div class="info-content">
+              <div class="info-label">用户 ID</div>
+              <div class="info-value">{{ currentUserId }}</div>
+            </div>
+            <button class="copy-btn" @click="copyToClipboard(currentUserId)" title="复制ID">
+              📋
+            </button>
+          </div>
+          
+          <div v-if="userEmail" class="info-card">
+            <div class="info-icon">📧</div>
+            <div class="info-content">
+              <div class="info-label">邮箱</div>
+              <div class="info-value">{{ userEmail }}</div>
+            </div>
+          </div>
         </div>
-        <div v-if="userEmail" class="user-email-info">
-          <span class="user-email-label">邮箱:</span>
-          <span class="user-email-value">{{ userEmail }}</span>
+
+        <!-- 操作按钮区域 -->
+        <div class="action-section">
+          <h3 class="section-title">操作</h3>
+          <div class="action-buttons">
+            <button 
+              @click="manualSync" 
+              class="action-btn sync-btn" 
+              :disabled="syncInProgress"
+            >
+              <span class="btn-icon">{{ syncInProgress ? '⏳' : '🔄' }}</span>
+              <span>{{ syncInProgress ? '同步中...' : '手动同步' }}</span>
+            </button>
+            
+            <button 
+              @click="signOut" 
+              class="action-btn logout-btn"
+            >
+              <span class="btn-icon">🚪</span>
+              <span>退出登录</span>
+            </button>
+          </div>
         </div>
-        <div v-if="lastSyncTime" class="sync-info">
-          最后同步：{{ formatTime(lastSyncTime) }}
-        </div>
-        <div v-if="syncInProgress" class="sync-progress">
-          正在同步数据...
-        </div>
-        <div class="sync-controls">
-          <button @click="manualSync" class="auth-btn secondary" :disabled="syncInProgress">
-            {{ syncInProgress ? '同步中...' : '手动同步' }}
-          </button>
-          <div class="migration-section">
+
+        <!-- 数据迁移区域 -->
+        <div class="migration-section">
+          <h3 class="section-title">数据迁移</h3>
+          <p class="section-desc">从其他用户ID迁移数据到当前账户</p>
+          <div class="migration-input-group">
             <input 
               v-model="sourceUserId" 
               type="text" 
-              placeholder="输入源用户ID (如: device_r271tk)"
+              placeholder="输入源用户ID（用于数据迁移）"
               class="migration-input"
               :disabled="migrationInProgress"
             >
             <button 
               @click="copyUserData" 
-              class="auth-btn warning" 
+              class="migration-btn" 
               :disabled="syncInProgress || migrationInProgress || !sourceUserId"
             >
-              {{ migrationInProgress ? '迁移中...' : '数据迁移' }}
+              <span v-if="!migrationInProgress">📥</span>
+              <span v-else class="spinner"></span>
+              <span>{{ migrationInProgress ? '迁移中...' : '开始迁移' }}</span>
             </button>
           </div>
-          <button @click="signOut" class="auth-btn danger">
-            退出登录
-          </button>
         </div>
       </div>
       
       <div v-if="error" class="error-message">
-        {{ error }}
+        <div class="error-icon">⚠️</div>
+        <div class="error-content">{{ error }}</div>
       </div>
     </div>
   </div>
@@ -83,6 +131,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useDataStore } from '../stores/dataStore.js'
 import authService from '../firebase/authService.js'
+import { getDataOwnerId } from '../utils/dataOwnerId.js'
 
 export default {
   name: 'Auth',
@@ -96,9 +145,9 @@ export default {
     const isLoggedIn = computed(() => dataStore.isOnline)
     const lastSyncTime = computed(() => dataStore.lastSyncTime)
     const syncInProgress = computed(() => dataStore.syncInProgress)
+    // 当前 dataOwnerId（不再显示 Firebase UID）
     const currentUserId = computed(() => {
-      const user = authService.getCurrentUser()
-      return user?.uid || null
+      return getDataOwnerId() || '未设置'
     })
     const userEmail = computed(() => {
       const user = authService.getCurrentUser()
@@ -205,8 +254,20 @@ export default {
       return date.toLocaleString('zh-CN')
     }
 
+    const copyToClipboard = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text)
+        error.value = '✅ 已复制到剪贴板！'
+        setTimeout(() => {
+          error.value = ''
+        }, 2000)
+      } catch (err) {
+        error.value = '❌ 复制失败，请手动复制'
+      }
+    }
+
     onMounted(() => {
-      // 初始化云端同步
+      // 初始化云端同步（基于 dataOwnerId）
       dataStore.initializeCloudSync()
     })
 
@@ -224,7 +285,8 @@ export default {
       signOut,
       manualSync,
       copyUserData,
-      formatTime
+      formatTime,
+      copyToClipboard
     }
   }
 }
@@ -249,60 +311,113 @@ export default {
 
 .auth-card {
   background: white;
-  border-radius: 12px;
-  padding: 40px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  max-width: 400px;
+  border-radius: 20px;
+  padding: 0;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 32px 32px 24px;
+  text-align: center;
+  color: white;
+}
+
+.header-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 
 .auth-card h2 {
-  text-align: center;
-  margin-bottom: 10px;
-  color: #333;
+  margin: 0 0 8px 0;
+  color: white;
+  font-size: 28px;
+  font-weight: 700;
 }
 
 .auth-description {
-  text-align: center;
-  color: #666;
-  margin-bottom: 30px;
-  line-height: 1.5;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .auth-options {
+  padding: 32px;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
 .auth-btn {
-  padding: 12px 24px;
+  padding: 14px 24px;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .google-btn {
   background: white;
   color: #333;
-  border: 1px solid #dadce0;
+  border: 2px solid #e0e0e0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .google-btn:hover:not(:disabled) {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  border-color: #4285F4;
+}
+
+.google-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .google-icon {
   flex-shrink: 0;
+}
+
+.loading-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.loading-dots span {
+  animation: dot-bounce 1.4s infinite ease-in-out;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+  40% { transform: scale(1.2); opacity: 1; }
 }
 
 .auth-btn.secondary {
@@ -331,10 +446,21 @@ export default {
 }
 
 .auth-note {
-  text-align: center;
-  margin: 10px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border-left: 4px solid #ffc107;
   color: #666;
-  font-style: italic;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.note-icon {
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
 .divider {
@@ -386,78 +512,251 @@ export default {
 }
 
 .user-info {
-  text-align: center;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
-.user-status {
+/* 状态卡片 */
+.status-card {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 2px solid #4caf50;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.status-indicator-wrapper {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 15px;
-  font-weight: 500;
-  color: #4CAF50;
+  gap: 12px;
 }
 
 .status-indicator {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #4CAF50;
+  background: #4caf50;
+  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.2);
 }
 
-.user-id-info,
-.user-email-info {
-  color: #666;
-  font-size: 12px;
-  margin-bottom: 8px;
-  text-align: left;
+.status-indicator.pulsing {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(76, 175, 80, 0);
+  }
+}
+
+.status-text {
+  font-weight: 600;
+  color: #2e7d32;
+  font-size: 16px;
+}
+
+.sync-time-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
   padding: 6px 12px;
-  background: #f5f5f5;
-  border-radius: 6px;
-  word-break: break-all;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #666;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.user-id-label,
-.user-email-label {
-  font-weight: 500;
+.time-icon {
+  font-size: 14px;
+}
+
+/* 信息卡片 */
+.info-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.info-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.info-card:hover {
+  background: #f1f3f5;
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.info-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-label {
+  font-size: 12px;
   color: #999;
-  margin-right: 8px;
+  margin-bottom: 4px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.user-id-value,
-.user-email-value {
+.info-value {
+  font-size: 14px;
   color: #333;
   font-family: 'Courier New', monospace;
-  font-size: 11px;
+  word-break: break-all;
+  font-weight: 600;
 }
 
-.sync-info {
+.copy-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.copy-btn:hover {
+  background: #e9ecef;
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* 操作区域 */
+.action-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-desc {
+  font-size: 13px;
   color: #666;
-  font-size: 14px;
-  margin-bottom: 10px;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
 }
 
-.sync-progress {
-  color: #2196F3;
-  font-size: 14px;
-  margin-bottom: 20px;
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.sync-btn {
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+}
+
+.sync-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+.logout-btn {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+}
+
+.logout-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-icon {
+  font-size: 18px;
 }
 
 .error-message {
-  background: #ffebee;
+  margin: 0 32px 32px;
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
   color: #c62828;
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 15px;
-  text-align: left;
+  padding: 16px;
+  border-radius: 12px;
+  border-left: 4px solid #f44336;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   font-size: 14px;
   white-space: pre-line;
   line-height: 1.6;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.15);
 }
 
 .error-message:empty {
   display: none;
+}
+
+.error-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.error-content {
+  flex: 1;
 }
 
 .auto-login-status {
@@ -486,50 +785,85 @@ export default {
   font-weight: 500;
 }
 
-.sync-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 15px;
-}
-
-.sync-controls .auth-btn {
-  flex: 1;
-}
-
+/* 数据迁移区域 */
 .migration-section {
+  background: #fff9e6;
+  border-radius: 16px;
+  padding: 20px;
+  border: 2px solid #ffc107;
+}
+
+.migration-input-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .migration-input {
-  padding: 12px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
+  padding: 14px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
   font-size: 14px;
-  transition: border-color 0.3s ease;
+  transition: all 0.3s ease;
   width: 100%;
   box-sizing: border-box;
+  background: white;
+  font-family: 'Courier New', monospace;
 }
 
 .migration-input:focus {
   outline: none;
   border-color: #ff9800;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
 }
 
 .migration-input:disabled {
   background: #f5f5f5;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
-.auth-btn.warning {
-  background: #ff9800;
+.migration-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
   color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  width: 100%;
 }
 
-.auth-btn.warning:hover {
-  background: #f57c00;
+.migration-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+}
+
+.migration-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .auto-login-status small {
@@ -537,17 +871,40 @@ export default {
   font-size: 12px;
 }
 
+/* 移动端优化 */
 @media (max-width: 480px) {
   .auth-container {
     padding: 10px;
   }
   
-  .auth-card {
-    padding: 30px 20px;
+  .card-header {
+    padding: 24px 20px 20px;
   }
   
-  .auth-buttons {
+  .user-info {
+    padding: 20px;
+  }
+  
+  .error-message {
+    margin: 0 20px 20px;
+  }
+  
+  .status-header {
     flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .sync-time-badge {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .action-btn {
+    width: 100%;
+  }
+  
+  .migration-btn {
+    width: 100%;
   }
 }
 </style>

@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth'
 import { auth } from './config.js'
 import dataService from './dataService.js'
+import { setDataOwnerId, getDataOwnerId } from '../utils/dataOwnerId.js'
 
 class AuthService {
   constructor() {
@@ -42,10 +43,18 @@ class AuthService {
       console.log('用户显示名称:', result.user.displayName)
       
       this.currentUser = result.user
-      // 使用 Firebase UID 作为数据存储的用户ID
+      // 使用 Firebase UID 作为数据存储的用户ID，并同步为 dataOwnerId
       const userId = result.user.uid
       console.log('设置数据服务用户ID:', userId)
       dataService.setUserId(userId)
+      // 将本地 dataOwnerId 绑定为 Google UID，便于后续无登录访问同一份数据
+      const beforeOwnerId = getDataOwnerId()
+      const ok = setDataOwnerId(userId)
+      console.log('同步 dataOwnerId 为 Google UID:', {
+        beforeOwnerId,
+        newOwnerId: userId,
+        saved: ok
+      })
       
       // 验证用户ID是否设置成功
       const verifyUserId = dataService.userId
@@ -74,10 +83,18 @@ class AuthService {
         })
         
         this.currentUser = user
-        // 使用 Firebase UID 作为数据存储的用户ID
+        // 使用 Firebase UID 作为数据存储的用户ID，并同步为 dataOwnerId
         const userId = user.uid
         console.log('设置数据服务用户ID（从认证状态监听）:', userId)
         dataService.setUserId(userId)
+        // 将本地 dataOwnerId 绑定为 Google UID，便于后续无登录访问同一份数据
+        const beforeOwnerId = getDataOwnerId()
+        const ok = setDataOwnerId(userId)
+        console.log('同步 dataOwnerId 为 Google UID（从认证状态监听）:', {
+          beforeOwnerId,
+          newOwnerId: userId,
+          saved: ok
+        })
         
         // 验证用户ID是否设置成功
         const verifyUserId = dataService.userId

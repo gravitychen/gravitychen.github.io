@@ -1,27 +1,9 @@
 <template>
   <div id="app">
-    <!-- 页面刷新时的提示弹窗（仅登录后显示） -->
-    <div v-if="isUserLoggedIn && showRefreshQuestion" class="refresh-question-modal" @click="showRefreshQuestion = false">
-      <!-- 修改前
-      <div class="refresh-question-content" @click.stop>  <!- 内容 -></div>
-      问题：@click.stop 阻止了事件冒泡，点击内容区域不会触发父元素的点击事件。
-      修改后
-      <div class="refresh-question-content">  <!- 内容 -></div>
-      原理：
-      移除了 @click.stop
-      点击内容区域时，事件会冒泡到父元素（.refresh-question-modal）
-      父元素的 @click="showRefreshQuestion = false" 会执行，关闭弹窗 -->
-
-      <div class="refresh-question-content">
-        <h3>你要记住的是内在感觉！！不是翻译！！</h3>
-        <p class="question-hint">点击屏幕任何地方关闭</p>
-      </div>
-    </div>
-
-    <!-- 导航栏（仅登录后显示） -->
-    <nav v-if="isUserLoggedIn" class="navbar">
+    <!-- 导航栏（始终显示，使用 dataOwnerId 同步云端） -->
+    <nav class="navbar">
       <div class="nav-brand">
-        <h1>把内在外在表达出来</h1>
+        <h1>是内在感觉，不是翻译</h1>
         <div class="user-id-display">
           <div class="device-info">
             <span class="device-label">用户ID:</span>
@@ -76,32 +58,20 @@
       </div>
     </nav>
     
-    <!-- 如果未登录，显示全屏登录界面 -->
-    <div v-if="!isUserLoggedIn" class="login-required-overlay">
-      <div class="login-required-content">
-        <Auth />
-        <div class="login-required-message">
-          <p>🔒 请先使用 Google 账号登录以使用本网站</p>
-        </div>
+    <!-- 主内容区域 -->
+    <main class="main-content">
+      <router-view />
+    </main>
+    
+    <!-- 认证弹窗 -->
+    <div v-if="showAuth" class="auth-modal" @click="showAuth = false">
+      <div class="auth-modal-content" @click.stop>
+        <Auth @close="showAuth = false" />
       </div>
     </div>
     
-    <!-- 已登录时显示正常内容 -->
-    <template v-else>
-      <main class="main-content">
-        <router-view />
-      </main>
-      
-      <!-- 认证弹窗 -->
-      <div v-if="showAuth" class="auth-modal" @click="showAuth = false">
-        <div class="auth-modal-content" @click.stop>
-          <Auth @close="showAuth = false" />
-        </div>
-      </div>
-    </template>
-    
-    <!-- 日志显示面板（仅登录后显示） -->
-    <div v-if="isUserLoggedIn && showLogs" class="log-panel">
+    <!-- 日志显示面板 -->
+    <div v-if="showLogs" class="log-panel">
       <div class="log-header">
         <h3>📋 日志查看器</h3>
         <div class="log-controls">
@@ -119,8 +89,8 @@
       </div>
     </div>
     
-    <!-- 底部导航（仅登录后显示） -->
-    <nav v-if="isUserLoggedIn" class="bottom-nav">
+    <!-- 底部导航 -->
+    <nav class="bottom-nav">
       <router-link to="/" class="nav-item">
         <span class="nav-icon">🏠</span>
         <span class="nav-label">首页</span>
@@ -157,6 +127,7 @@ import { useRouter } from 'vue-router'
 import { useDataStore } from './stores/dataStore'
 import Auth from './components/Auth.vue'
 import authService from './firebase/authService.js'
+import { getDataOwnerId } from './utils/dataOwnerId.js'
 
 export default {
   name: 'App',
@@ -168,10 +139,9 @@ export default {
     const router = useRouter() // 获取路由实例，用于页面跳转
     const showAuth = ref(false)
     const showLogs = ref(false)
-    const showRefreshQuestion = ref(false)
     const syncTimeInterval = ref(null)
     const isLoggedIn = ref(false)
-    const wasLoggedIn = ref(false) // 记录之前的登录状态，用于检测状态变化
+    const wasLoggedIn = ref(false) // 保留但不再用于控制界面显示
     const logs = ref([])
     const logContent = ref(null)
     const maxLogs = 500 // 最多保存500条日志
@@ -197,30 +167,19 @@ export default {
       console.log('认证状态变化:', isLoggedIn.value ? '已登录' : '未登录')
     })
     
-    // 检查用户是否已登录
+    // 直接根据本地 dataOwnerId 显示用户ID（不再依赖 Firebase 登录）
     const isUserLoggedIn = computed(() => {
-      return isLoggedIn.value
+      return !!getDataOwnerId()
     })
     
-    // 获取当前用户ID
     const currentUserId = computed(() => {
-      if (!isLoggedIn.value) return '未登录'
-      const userId = authService.getUserId()
-      if (userId) {
-        return userId
-      }
-      return '未登录'
+      return getDataOwnerId() || '未设置'
     })
-
-    // 获取用户ID（用于显示）
+    
     const deviceId = computed(() => {
-      if (!isLoggedIn.value) return '未登录'
-      const userId = authService.getUserId()
-      if (userId) {
-        // 显示用户ID（Firebase UID）
-        return userId.substring(0, 8) + '...'
-      }
-      return '未登录'
+      const id = getDataOwnerId()
+      if (!id) return '未设置'
+      return id.substring(0, 8) + '...'
     })
     
     // 优化的语言切换
@@ -429,27 +388,6 @@ export default {
     
     // 组件挂载时的优化
     onMounted(() => {
-      // 初始化检查登录状态
-      const user = authService.getCurrentUser()
-      // 原理：
-      // onMounted：组件挂载时执行
-      // 初始化 wasLoggedIn，避免首次加载时误判
-      const initialLoginStatus = !!(user && user.uid)
-      isLoggedIn.value = initialLoginStatus
-      // 初始化 wasLoggedIn，记录初始登录状态
-      wasLoggedIn.value = initialLoginStatus
-      console.log('组件挂载时登录状态:', isLoggedIn.value ? '已登录' : '未登录')
-      
-      // 如果未登录，自动显示登录界面
-      if (!isLoggedIn.value) {
-        console.log('检测到未登录，显示登录界面')
-      }
-      
-      // 页面刷新时显示问题弹窗（仅登录后显示）
-      if (isLoggedIn.value) {
-        showRefreshQuestion.value = true
-      }
-      
       // 设置定时器更新同步时间显示
       syncTimeInterval.value = setInterval(() => {
         // 触发响应式更新
@@ -471,7 +409,6 @@ export default {
       dataStore,
       showAuth,
       showLogs,
-      showRefreshQuestion,
       logs,
       logContent,
       currentUserId,
@@ -739,73 +676,6 @@ export default {
   font-weight: 500;
 }
 
-/* 页面刷新时的提示弹窗样式 */
-.refresh-question-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 3000;
-  padding: 20px;
-  animation: fadeIn 0.3s ease;
-  cursor: pointer;
-  /* 确保弹窗不会影响页面其他内容的显示 */
-  pointer-events: auto;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.refresh-question-content {
-  background: white;
-  border-radius: 16px;
-  padding: 2.5rem;
-  max-width: 500px;
-  width: 100%;
-  text-align: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.refresh-question-content h3 {
-  font-size: 1.5rem;
-  color: #333;
-  margin-bottom: 1.5rem;
-  line-height: 1.6;
-  font-weight: 600;
-}
-
-.question-hint {
-  color: #999;
-  font-size: 0.9rem;
-  margin-top: 1rem;
-  font-style: italic;
-}
-
 /* 认证弹窗样式 */
 .auth-modal {
   position: fixed;
@@ -823,11 +693,47 @@ export default {
 
 .auth-modal-content {
   background: white;
-  border-radius: 12px;
-  max-width: 500px;
+  border-radius: 20px;
   width: 100%;
+  max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 电脑端弹窗更大 */
+@media (min-width: 768px) {
+  .auth-modal-content {
+    max-width: 700px;
+    max-height: 85vh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .auth-modal-content {
+    max-width: 800px;
+  }
+}
+
+/* 滚动条样式 */
+.auth-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.auth-modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.auth-modal-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.auth-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 /* 移动端优化 */
