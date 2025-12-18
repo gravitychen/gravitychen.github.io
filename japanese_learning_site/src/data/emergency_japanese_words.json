@@ -1,0 +1,322 @@
+{
+  "languages": {
+    "ja": {
+      "sentences": [
+        {
+          "id": "acc001TrafficHit",
+          "context": "交通事故 - 被车撞到",
+          "chinese": "我被车撞了！请叫救护车！",
+          "japanese": "車(くるま)に ぶつかりました！救急車(きゅうきゅうしゃ)を 呼(よ)んでください！",
+          "createdAt": "2025-12-17T19:55:00.000Z",
+          "updatedAt": "2025-12-17T19:55:00.000Z"
+        },
+        {
+          "id": "acc002TrafficInjury",
+          "context": "交通事故 - 看到别人受伤",
+          "chinese": "出事故了！有人受伤！",
+          "japanese": "事故(じこ)です！人(ひと)が けがを しています！",
+          "createdAt": "2025-12-17T19:55:00.000Z",
+          "updatedAt": "2025-12-17T19:55:00.000Z"
+        },
+        {
+          "id": "acc003TrafficConscious",
+          "context": "交通事故 - 自己还能说话",
+          "chinese": "我有意识，但动不了",
+          "japanese": "意識(いしき)は あります。動(うご)けません。",
+          "createdAt": "2025-12-17T19:55:00.000Z",
+          "updatedAt": "2025-12-17T19:55:00.000Z"
+        },
+        {
+          "id": "acc004WorkMachine",
+          "context": "工作场所事故 - 手被机器夹",
+          "chinese": "手被夹了！快停下！",
+          "japanese": "手(て)を はさみました！止(と)めてください！",
+          "createdAt": "2025-12-17T19:55:01.000Z",
+          "updatedAt": "2025-12-17T19:55:01.000Z"
+        },
+        {
+          "id": "acc005WorkFall",
+          "context": "工作场所事故 - 高处跌落",
+          "chinese": "我摔下来了，腰很痛！",
+          "japanese": "落(お)ちました！腰(こし)が 痛(いた)いです！",
+          "createdAt": "2025-12-17T19:55:02.000Z",
+          "updatedAt": "2025-12-17T19:55:02.000Z"
+        },
+        {
+          "id": "acc006WorkColleague",
+          "context": "工作场所事故 - 同事受伤",
+          "chinese": "同事倒下了！叫急救！",
+          "japanese": "同僚(どうりょう)が 倒(たお)れています！救急(きゅうきゅう)を！",
+          "createdAt": "2025-12-17T19:55:03.000Z",
+          "updatedAt": "2025-12-17T19:55:03.000Z"
+        },
+        {
+          "id": "acc007BikeFall",
+          "context": "自行车事故 - 骑车摔倒",
+          "chinese": "骑车摔了，在流血",
+          "japanese": "自転車(じてんしゃ)で 転(ころ)びました。血(ち)が 出(で)ています。",
+          "createdAt": "2025-12-17T19:55:04.000Z",
+          "updatedAt": "2025-12-17T19:55:04.000Z"
+        },
+        {
+          "id": "acc008BikeHit",
+          "context": "自行车事故 - 被撞",
+          "chinese": "被撞了！请叫警察！",
+          "japanese": "ぶつかられました！警察(けいさつ)を 呼(よ)んでください！",
+          "createdAt": "2025-12-17T19:55:05.000Z",
+          "updatedAt": "2025-12-17T19:55:05.000Z"
+        },
+        {
+          "id": "acc009BikeHead",
+          "context": "自行车事故 - 头部受伤",
+          "chinese": "头撞了，很不舒服",
+          "japanese": "頭(あたま)を 打(う)ちました。気持(きも)ち 悪(わる)いです。",
+          "createdAt": "2025-12-17T19:55:06.000Z",
+          "updatedAt": "2025-12-17T19:55:06.000Z"
+        },
+        {
+          "id": "acc010NaturalTrapped",
+          "context": "自然灾害 - 地震后受困",
+          "chinese": "救命！我在里面！",
+          "japanese": "助(たす)けてください！中(なか)に います！",
+          "createdAt": "2025-12-17T19:55:07.000Z",
+          "updatedAt": "2025-12-17T19:55:07.000Z"
+        },
+        {
+          "id": "acc011NaturalDanger",
+          "context": "自然灾害 - 房屋危险",
+          "chinese": "建筑很危险，快逃！",
+          "japanese": "建物(たてもの)が 危(あぶ)ないです！逃(に)げましょう！",
+          "createdAt": "2025-12-17T19:55:08.000Z",
+          "updatedAt": "2025-12-17T19:55:08.000Z"
+        },
+        {
+          "id": "acc012NaturalInjury",
+          "context": "自然灾害 - 受伤需救助",
+          "chinese": "有伤员！需要医生！",
+          "japanese": "けが人(にん)が います！医者(いしゃ)が 必要(ひつよう)です！",
+          "createdAt": "2025-12-17T19:55:09.000Z",
+          "updatedAt": "2025-12-17T19:55:09.000Z"
+        },
+        {
+          "id": "acc013HikingLost",
+          "context": "登山/户外事故 - 迷路",
+          "chinese": "迷路了，不知道在哪",
+          "japanese": "道(みち)に 迷(まよ)いました。場所(ばしょ)が わかりません。",
+          "createdAt": "2025-12-17T19:55:10.000Z",
+          "updatedAt": "2025-12-17T19:55:10.000Z"
+        },
+        {
+          "id": "acc014HikingFall",
+          "context": "登山/户外事故 - 跌落",
+          "chinese": "脚受伤了，动不了",
+          "japanese": "足(あし)を けがしました。動(うご)けません。",
+          "createdAt": "2025-12-17T19:55:11.000Z",
+          "updatedAt": "2025-12-17T19:55:11.000Z"
+        },
+        {
+          "id": "acc015HikingHypothermia",
+          "context": "登山/户外事故 - 同伴失温",
+          "chinese": "他很冷，意识很弱",
+          "japanese": "寒(さむ)がっています。意識(いしき)が 弱(よわ)いです。",
+          "createdAt": "2025-12-17T19:55:12.000Z",
+          "updatedAt": "2025-12-17T19:55:12.000Z"
+        },
+        {
+          "id": "acc016HikingLostComplete",
+          "context": "登山/户外事故 - 完全迷路",
+          "chinese": "迷路了，不知道位置",
+          "japanese": "道(みち)に 迷(まよ)いました！現在地(げんざいち)が わかりません。",
+          "createdAt": "2025-12-17T19:55:13.000Z",
+          "updatedAt": "2025-12-17T19:55:13.000Z"
+        },
+        {
+          "id": "acc017HikingDark",
+          "context": "登山/户外事故 - 天黑+迷路",
+          "chinese": "天黑了，很危险",
+          "japanese": "暗(くら)くなって 危険(きけん)です！",
+          "createdAt": "2025-12-17T19:55:14.000Z",
+          "updatedAt": "2025-12-17T19:55:14.000Z"
+        },
+        {
+          "id": "acc018HikingLocation",
+          "context": "登山/户外事故 - 打电话说明位置",
+          "chinese": "在山里，在××山",
+          "japanese": "山(やま)の 中(なか)です。○○山(やま)です。",
+          "createdAt": "2025-12-17T19:55:15.000Z",
+          "updatedAt": "2025-12-17T19:55:15.000Z"
+        },
+        {
+          "id": "acc019HikingSlip",
+          "context": "登山/户外事故 - 滑倒受伤",
+          "chinese": "滑倒摔了",
+          "japanese": "滑(すべ)って 転(ころ)びました。",
+          "createdAt": "2025-12-17T19:55:16.000Z",
+          "updatedAt": "2025-12-17T19:55:16.000Z"
+        },
+        {
+          "id": "acc020HikingFallImmobile",
+          "context": "登山/户外事故 - 跌落后不能动",
+          "chinese": "掉下来了，动不了",
+          "japanese": "落(お)ちました！動(うご)けません！",
+          "createdAt": "2025-12-17T19:55:17.000Z",
+          "updatedAt": "2025-12-17T19:55:17.000Z"
+        },
+        {
+          "id": "acc021HikingCliff",
+          "context": "登山/户外事故 - 在崖边",
+          "chinese": "在悬崖附近，很危险",
+          "japanese": "崖(がけ)の 近(ちか)くです！危(あぶ)ないです！",
+          "createdAt": "2025-12-17T19:55:18.000Z",
+          "updatedAt": "2025-12-17T19:55:18.000Z"
+        },
+        {
+          "id": "acc022HikingSprain",
+          "context": "登山/户外事故 - 扭伤",
+          "chinese": "脚扭了",
+          "japanese": "足(あし)を ひねりました。",
+          "createdAt": "2025-12-17T19:55:19.000Z",
+          "updatedAt": "2025-12-17T19:55:19.000Z"
+        },
+        {
+          "id": "acc023HikingCantDescend",
+          "context": "登山/户外事故 - 不能下山",
+          "chinese": "没法自己下山",
+          "japanese": "自力(じりき)で 下山(げざん)できません。",
+          "createdAt": "2025-12-17T19:55:20.000Z",
+          "updatedAt": "2025-12-17T19:55:20.000Z"
+        },
+        {
+          "id": "acc024HikingPainWorse",
+          "context": "登山/户外事故 - 疼痛加重",
+          "chinese": "疼痛在加重",
+          "japanese": "痛(いた)みが 強(つよ)く なっています。",
+          "createdAt": "2025-12-17T19:55:21.000Z",
+          "updatedAt": "2025-12-17T19:55:21.000Z"
+        },
+        {
+          "id": "acc025HikingShiver",
+          "context": "登山/户外事故 - 发抖",
+          "chinese": "身体在发抖",
+          "japanese": "体(からだ)が 震(ふる)えています。",
+          "createdAt": "2025-12-17T19:55:22.000Z",
+          "updatedAt": "2025-12-17T19:55:22.000Z"
+        },
+        {
+          "id": "acc026HikingConsciousFuzzy",
+          "context": "登山/户外事故 - 意识下降",
+          "chinese": "意识模糊",
+          "japanese": "意識(いしき)が ぼんやりしています。",
+          "createdAt": "2025-12-17T19:55:23.000Z",
+          "updatedAt": "2025-12-17T19:55:23.000Z"
+        },
+        {
+          "id": "acc027HikingCompanionDanger",
+          "context": "登山/户外事故 - 同伴危险",
+          "chinese": "同伴情况危险",
+          "japanese": "仲間(なかま)が 危険(きけん)な 状態(じょうたい)です！",
+          "createdAt": "2025-12-17T19:55:24.000Z",
+          "updatedAt": "2025-12-17T19:55:24.000Z"
+        },
+        {
+          "id": "acc028HikingDizzy",
+          "context": "登山/户外事故 - 中暑/脱水 - 头晕",
+          "chinese": "头晕",
+          "japanese": "めまいが します。",
+          "createdAt": "2025-12-17T19:55:25.000Z",
+          "updatedAt": "2025-12-17T19:55:25.000Z"
+        },
+        {
+          "id": "acc029HikingNausea",
+          "context": "登山/户外事故 - 中暑/脱水 - 恶心",
+          "chinese": "想吐",
+          "japanese": "吐(は)きそうです。",
+          "createdAt": "2025-12-17T19:55:26.000Z",
+          "updatedAt": "2025-12-17T19:55:26.000Z"
+        },
+        {
+          "id": "acc030HikingCantWalk",
+          "context": "登山/户外事故 - 中暑/脱水 - 走不动",
+          "chinese": "走不了，需要休息",
+          "japanese": "歩(ある)けません。休(やす)ませてください。",
+          "createdAt": "2025-12-17T19:55:27.000Z",
+          "updatedAt": "2025-12-17T19:55:27.000Z"
+        },
+        {
+          "id": "acc031HikingRain",
+          "context": "登山/户外事故 - 天气突变 - 暴雨",
+          "chinese": "雨变大了",
+          "japanese": "雨(あめ)が 強(つよ)く なりました！",
+          "createdAt": "2025-12-17T19:55:28.000Z",
+          "updatedAt": "2025-12-17T19:55:28.000Z"
+        },
+        {
+          "id": "acc032HikingWind",
+          "context": "登山/户外事故 - 天气突变 - 强风",
+          "chinese": "风很危险",
+          "japanese": "風(かぜ)が 危険(きけん)です！",
+          "createdAt": "2025-12-17T19:55:29.000Z",
+          "updatedAt": "2025-12-17T19:55:29.000Z"
+        },
+        {
+          "id": "acc033HikingThunder",
+          "context": "登山/户外事故 - 天气突变 - 雷",
+          "chinese": "在打雷",
+          "japanese": "雷(かみなり)が 鳴(な)っています！",
+          "createdAt": "2025-12-17T19:55:30.000Z",
+          "updatedAt": "2025-12-17T19:55:30.000Z"
+        },
+        {
+          "id": "acc034HikingNight",
+          "context": "登山/户外事故 - 夜间被困 - 天黑",
+          "chinese": "天黑了",
+          "japanese": "夜(よる)に なりました。",
+          "createdAt": "2025-12-17T19:55:31.000Z",
+          "updatedAt": "2025-12-17T19:55:31.000Z"
+        },
+        {
+          "id": "acc035HikingNightImmobile",
+          "context": "登山/户外事故 - 夜间被困 - 无法行动",
+          "chinese": "已经动不了了",
+          "japanese": "もう 動(うご)けません。",
+          "createdAt": "2025-12-17T19:55:32.000Z",
+          "updatedAt": "2025-12-17T19:55:32.000Z"
+        },
+        {
+          "id": "acc036HikingRescue",
+          "context": "登山/户外事故 - 夜间被困 - 请求救援",
+          "chinese": "请求救援",
+          "japanese": "救助(きゅうじょ)を お願(ねが)いします！",
+          "createdAt": "2025-12-17T19:55:33.000Z",
+          "updatedAt": "2025-12-17T19:55:33.000Z"
+        },
+        {
+          "id": "acc037HikingSignal",
+          "context": "登山/户外事故 - 手机问题 - 信号弱",
+          "chinese": "信号很弱",
+          "japanese": "電波(でんぱ)が 弱(よわ)いです。",
+          "createdAt": "2025-12-17T19:55:34.000Z",
+          "updatedAt": "2025-12-17T19:55:34.000Z"
+        },
+        {
+          "id": "acc038HikingBattery",
+          "context": "登山/户外事故 - 手机问题 - 快没电",
+          "chinese": "手机快没电",
+          "japanese": "携帯(けいたい)の 電池(でんち)が もう ありません。",
+          "createdAt": "2025-12-17T19:55:35.000Z",
+          "updatedAt": "2025-12-17T19:55:35.000Z"
+        },
+        {
+          "id": "acc039HikingCallDrop",
+          "context": "登山/户外事故 - 手机问题 - 断断续续",
+          "chinese": "通话要断了",
+          "japanese": "通話(つうわ)が 切(き)れそうです。",
+          "createdAt": "2025-12-17T19:55:36.000Z",
+          "updatedAt": "2025-12-17T19:55:36.000Z"
+        }
+      ]
+    }
+  }
+}
+
+

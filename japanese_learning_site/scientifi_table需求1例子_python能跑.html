@@ -1,0 +1,236 @@
+<template>
+    <div class="container">
+      <h2>概率论实验台 (Vue + Pyodide 版)</h2>
+      
+      <div class="controls">
+        <button :disabled="isLoading" @click="runAllTests">
+          {{ isLoading ? '引擎加载中...' : '运行所有代码' }}
+        </button>
+        <span class="status">{{ statusMsg }}</span>
+      </div>
+  
+      <table class="tg">
+        <thead>
+          <tr>
+            <th>概念</th>
+            <th>人话解释</th>
+            <th>专业解释</th>
+            <th>Python 代码 (可编辑)</th>
+            <th>运行结果</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in tableData" :key="index">
+            <td v-html="item.concept"></td>
+            <td>{{ item.simpleExplain }}</td>
+            <td class="math">{{ item.mathFormula }}</td>
+            <td>
+              <textarea v-model="item.code" class="code-editor"></textarea>
+            </td>
+            <td class="output" :class="{ 'has-val': item.output }">
+              {{ item.output || '等待运行...' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </template>
+  
+  <script setup>
+  import { ref, onMounted } from 'vue';
+  
+  // 1. 定义表格数据模型
+  const tableData = ref([
+    {
+      concept: '随机变量<br>Random Var',
+      simpleExplain: '不是确定的值，而是记录不确定的规则。',
+      mathFormula: '$X: \\Omega \\to \\mathbb{R}$',
+      code: 'import numpy as np\nval = np.random.normal(25, 2, 3)\nprint(f"结果: {val.round(2)}")',
+      output: ''
+    },
+    {
+      concept: '期望<br>Expectation',
+      simpleExplain: '长期来看的“平均水平”。',
+      mathFormula: '$E[X] = \\int x f(x) dx$',
+      code: 'import numpy as np\ndata = [170, 175, 180, 165]\nprint(f"平均值: {np.mean(data)}")',
+      output: ''
+    }
+    // ... 其他行依此类推
+  ]);
+  
+  const isLoading = ref(true);
+  const statusMsg = ref('正在初始化 Python 环境...');
+  let pyodide = null;
+  
+  // 2. 初始化 Pyodide
+  onMounted(async () => {
+    // 在实际项目中，建议在 index.html 引入 pyodide.js
+    pyodide = await window.loadPyodide();
+    await pyodide.loadPackage("numpy");
+    isLoading.ref = false;
+    statusMsg.value = "Python 引擎就绪 (Numpy 已加载)";
+  });
+  
+  // 3. 核心运行逻辑
+  async function runAllTests() {
+    statusMsg.value = "正在计算...";
+    
+    for (let item of tableData.value) {
+      try {
+        // 重定向 Python stdout 到变量
+        pyodide.runPython(`
+          import sys
+          import io
+          sys.stdout = io.StringIO()
+        `);
+        
+        // 执行代码
+        await pyodide.runPythonAsync(item.code);
+        
+        // 获取输出并赋值给响应式对象
+        item.output = pyodide.runPython("sys.stdout.getvalue()");
+      } catch (err) {
+        item.output = "Error: " + err.message;
+      }
+    }
+    statusMsg.value = "所有计算已完成";
+  }
+  </script>
+  
+  <style scoped>
+  .container { padding: 20px; font-family: sans-serif; }
+  .tg { width: 100%; border-collapse: collapse; }
+  .tg th, .tg td { border: 1px solid #ccc; padding: 12px; text-align: left; }
+  .tg th { background: #f8f9fa; }
+  .code-editor { 
+    width: 100%; height: 80px; font-family: monospace; 
+    background: #2d2d2d; color: #ccc; border-radius: 4px; padding: 5px;
+  }
+  .output { font-family: monospace; color: #666; background: #fefefe; }
+  .has-val { color: #d73a49; font-weight: bold; }
+  .controls { margin-bottom: 15px; }
+  button { padding: 8px 16px; cursor: pointer; background: #42b983; color: white; border: none; border-radius: 4px; }
+  button:disabled { background: #aaa; }
+  .status { margin-left: 15px; font-size: 0.9em; color: #666; }
+  </style>
+
+<!-- <!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+
+<style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0; width: 100%; margin-top: 20px;}
+    .tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:10px 5px;word-break:normal;}
+    .tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:bold; background-color: #f2f2f2; text-align:left;vertical-align:top}
+    .code-cell { background-color: #f5f5f5; font-family: monospace; white-space: pre-wrap; }
+    .output-cell { color: #d73a49; font-weight: bold; font-family: monospace; background-color: #fff9f9; }
+    button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
+    button:disabled { background: #ccc; }
+    #status { margin-left: 10px; color: #666; }
+</style>
+</head>
+<body>
+
+<h2>概率论概念实验台</h2>
+<button id="run-btn" onclick="runAllPython()">点击加载引擎并运行代码</button>
+<span id="status">等待指令...</span>
+
+<table class="tg" id="main-table">
+  <thead>
+    <tr>
+      <th>概念 (Concept)</th>
+      <th>人话解释</th>
+      <th>专业解释</th>
+      <th>1D vs 2D 例子</th>
+      <th>Python代码实现</th>
+      <th>运行输出 (实时生成)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>随机变量 (Random Var)</td>
+      <td>不是确定的值，而是记录不确定的规则。</td>
+      <td>$X: \Omega \to \mathbb{R}$</td>
+      <td>1D: 室温<br>2D: 像素亮度</td>
+      <td class="code-cell">import numpy as np
+temp_1d = np.random.normal(25, 2, 3) # 模拟3天
+print(f"1D室温: {temp_1d.round(2)}")</td>
+      <td class="output-cell">等待运行...</td>
+    </tr>
+    <tr>
+      <td>期望 (Expectation)</td>
+      <td>长期来看的“平均水平”。</td>
+      <td>$E[X] = \int x f(x) dx$</td>
+      <td>1D: 平均身高<br>2D: 多帧降噪</td>
+      <td class="code-cell">import numpy as np
+heights = [170, 175, 180, 165]
+print(f"平均身高: {np.mean(heights)}")</td>
+      <td class="output-cell">等待运行...</td>
+    </tr>
+    <tr>
+      <td>方差 (Variance)</td>
+      <td>衡量数据“稳不稳定”。</td>
+      <td>$Var(X) = E[X^2] - (E[X])^2$</td>
+      <td>1D: 空调波动<br>2D: 图像纹理</td>
+      <td class="code-cell">import numpy as np
+temps = [24, 25, 24, 26, 25]
+print(f"温度方差: {np.var(temps):.3f}")</td>
+      <td class="output-cell">等待运行...</td>
+    </tr>
+  </tbody>
+</table>
+
+<script>
+    let pyodide;
+
+    async function initPyodide() {
+        document.getElementById('status').innerText = "正在加载 Python 引擎 (约5MB)...";
+        pyodide = await loadPyodide();
+        // 加载 numpy
+        await pyodide.loadPackage("numpy");
+        document.getElementById('status').innerText = "引擎就绪！";
+    }
+
+    async function runAllPython() {
+        if (!pyodide) {
+            await initPyodide();
+        }
+        
+        const btn = document.getElementById('run-btn');
+        btn.disabled = true;
+        document.getElementById('status').innerText = "计算中...";
+
+        const rows = document.querySelectorAll("#main-table tbody tr");
+        
+        for (let row of rows) {
+            const code = row.querySelector(".code-cell").innerText;
+            const outputCell = row.querySelector(".output-cell");
+            
+            try {
+                // 重定向 Python 的 print 输出到 JS
+                pyodide.runPython(`
+                    import sys
+                    import io
+                    sys.stdout = io.StringIO()
+                `);
+                
+                await pyodide.runPythonAsync(code);
+                
+                const stdout = pyodide.runPython("sys.stdout.getvalue()");
+                outputCell.innerText = stdout || "运行成功 (无输出)";
+            } catch (err) {
+                outputCell.innerText = "错误: " + err.message;
+            }
+        }
+        
+        document.getElementById('status').innerText = "全部运行完毕！";
+        btn.disabled = false;
+    }
+</script>
+
+</body>
+</html> -->

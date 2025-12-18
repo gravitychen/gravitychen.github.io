@@ -4,6 +4,14 @@
     <nav class="navbar">
       <div class="nav-brand">
         <h1>是内在感觉，不是翻译</h1>
+        <div class="nav-links">
+          <router-link to="/" class="nav-link-btn" :class="{ 'active': $route.path === '/' }">
+            🏠 语言学习区
+          </router-link>
+          <router-link to="/math-table" class="nav-link-btn" :class="{ 'active': $route.path === '/math-table' }">
+            📊 数学概念表格
+          </router-link>
+        </div>
         <div class="user-id-display">
           <div class="device-info">
             <span class="device-label">用户ID:</span>
@@ -554,6 +562,39 @@ export default {
   margin: 0;
 }
 
+.nav-links {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.nav-link-btn {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.nav-link-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.nav-link-btn.active {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+}
+
 .user-id-display {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.8);
@@ -753,6 +794,11 @@ export default {
     font-size: 1.2rem;
   }
   
+  .math-table-btn {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+  
   .nav-controls {
     width: 100%;
     justify-content: center;
@@ -810,6 +856,11 @@ export default {
   
   .nav-brand h1 {
     font-size: 1rem;
+  }
+  
+  .nav-link-btn {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
   }
   
   .nav-controls {

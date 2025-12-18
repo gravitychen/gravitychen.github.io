@@ -8,6 +8,7 @@ import Sentences from './components/Sentences.vue'
 import QA from './components/QA.vue'
 import Review from './components/Review.vue'
 import Quiz from './components/Quiz.vue'
+import MathTable from './components/MathTable.vue'
 import { useDataStore } from './stores/dataStore.js'
 
 const routes = [
@@ -17,6 +18,7 @@ const routes = [
   { path: '/qa', component: QA },
   { path: '/review', component: Review },
   { path: '/quiz', component: Quiz },
+  { path: '/math-table', component: MathTable },
   // 语言路由
   { path: '/japanese', component: Home },
   { path: '/english', component: Home },
