@@ -3,6 +3,9 @@
     <div class="header">
       <h2>📊 数学概念表格</h2>
       <div class="controls">
+        <button @click="showAddCategoryDialog = true" class="add-category-btn">
+          ➕ 添加学科
+        </button>
         <button :disabled="isLoading" @click="runAllTests" class="run-btn">
           {{ isLoading ? '引擎加载中...' : '运行所有代码' }}
         </button>
@@ -10,12 +13,47 @@
       </div>
     </div>
 
+    <!-- 添加学科对话框 -->
+    <div v-if="showAddCategoryDialog" class="dialog-overlay" @click="showAddCategoryDialog = false">
+      <div class="dialog-content" @click.stop>
+        <h3>添加新学科</h3>
+        <div class="form-group">
+          <label>学科名称：</label>
+          <input 
+            v-model="newCategoryName" 
+            type="text" 
+            placeholder="例如：线性代数"
+            class="form-input"
+            @keyup.enter="addCategory"
+          />
+        </div>
+        <div class="dialog-actions">
+          <button @click="addCategory" class="confirm-btn" :disabled="!newCategoryName.trim()">
+            确认添加
+          </button>
+          <button @click="cancelAddCategory" class="cancel-btn">
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="categories-container">
       <div v-for="category in categories" :key="category.name" class="category-section">
-        <div class="category-header" @click="toggleCategory(category.name)">
-          <span class="category-icon">{{ category.expanded ? '▼' : '▶' }}</span>
-          <h3 class="category-title">{{ category.name }}</h3>
-          <span class="category-count">({{ category.data.length }} 个概念)</span>
+        <div class="category-header">
+          <div class="category-header-left" @click="toggleCategory(category.name)">
+            <span class="category-icon">{{ category.expanded ? '▼' : '▶' }}</span>
+            <h3 class="category-title">{{ category.name }}</h3>
+            <span class="category-count">({{ category.data.length }} 个概念)</span>
+          </div>
+          <div class="category-header-right">
+            <button @click.stop="showAddItemDialogFunc(category.name)" class="add-item-btn" title="添加概念">
+              ➕
+            </button>
+            <button @click.stop="confirmDeleteCategory(category.name)" class="delete-category-btn" title="删除学科">
+              🗑️
+            </button>
+          </div>
         </div>
         <div v-show="category.expanded" class="table-wrapper">
           <table class="tg">
@@ -24,19 +62,24 @@
                 <th class="tg-0pky">概念 (Concept / 概念)</th>
                 <th class="tg-0pky">人话解释</th>
                 <th class="tg-g6kh">专业解释（公式、符号及其特性）</th>
-                <th class="tg-0pky">1D 生活例子</th>
-                <th class="tg-0pky">1D 使用场景</th>
+                <th class="tg-0pky">1D 生活例子和使用场景</th>
                 <th class="tg-0pky">1D 生活例子 python 代码</th>
                 <th class="tg-0pky">运行python代码后的输出</th>
-                <th class="tg-0pky">2D图像处理例子</th>
-                <th class="tg-0pky">2D 使用场景</th>
+                <th class="tg-0pky">2D 图像处理例子和使用场景</th>
                 <th class="tg-0pky">2D python代码实现</th>
                 <th class="tg-0pky">运行python代码后的输出</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(item, index) in category.data" :key="index">
-                <td class="tg-0pky concept-cell" v-html="item.concept"></td>
+                <td class="tg-0pky concept-cell">
+                  <div class="concept-cell-content">
+                    <span v-html="item.concept"></span>
+                    <button @click="deleteItem(category.name, index)" class="delete-item-btn" title="删除概念">
+                      🗑️
+                    </button>
+                  </div>
+                </td>
                 <td class="tg-0pky simple-explain">{{ item.simpleExplain }}</td>
                 <td class="tg-g6kh math-formula">
                   <div 
@@ -45,18 +88,44 @@
                     v-html="item.professionalExplain"
                   ></div>
                 </td>
-                <td class="tg-0pky example-1d">{{ item.example1d }}</td>
-                <td class="tg-0pky scenario-1d">{{ item.scenario1d }}</td>
+                <td class="tg-0pky example-scenario-1d">
+                  <div class="example-scenario-content">
+                    <div v-if="item.example1d" class="example-part">
+                      <strong>例子：</strong>{{ item.example1d }}
+                    </div>
+                    <div v-if="item.scenario1d" class="scenario-part">
+                      <strong>使用场景：</strong>{{ item.scenario1d }}
+                    </div>
+                  </div>
+                </td>
                 <td class="tg-0pky code-cell">
-                  <textarea v-model="item.code1d" class="code-editor" placeholder="输入1D Python代码..."></textarea>
+                  <textarea 
+                    v-model="item.code1d" 
+                    @input="debouncedSave(category.name)"
+                    class="code-editor" 
+                    placeholder="输入1D Python代码...">
+                  </textarea>
                 </td>
                 <td class="tg-0pky output-cell" :class="{ 'has-val': item.output1d, 'has-error': item.hasError1d }">
                   {{ item.output1d || '等待运行...' }}
                 </td>
-                <td class="tg-0pky example-2d">{{ item.example2d }}</td>
-                <td class="tg-0pky scenario-2d">{{ item.scenario2d }}</td>
+                <td class="tg-0pky example-scenario-2d">
+                  <div class="example-scenario-content">
+                    <div v-if="item.example2d" class="example-part">
+                      <strong>例子：</strong>{{ item.example2d }}
+                    </div>
+                    <div v-if="item.scenario2d" class="scenario-part">
+                      <strong>使用场景：</strong>{{ item.scenario2d }}
+                    </div>
+                  </div>
+                </td>
                 <td class="tg-0pky code-cell">
-                  <textarea v-model="item.code2d" class="code-editor" placeholder="输入2D Python代码..."></textarea>
+                  <textarea 
+                    v-model="item.code2d" 
+                    @input="debouncedSave(category.name)"
+                    class="code-editor" 
+                    placeholder="输入2D Python代码...">
+                  </textarea>
                 </td>
                 <td class="tg-0pky output-cell" :class="{ 'has-val': item.output2d, 'has-error': item.hasError2d }">
                   {{ item.output2d || '等待运行...' }}
@@ -67,20 +136,118 @@
         </div>
       </div>
     </div>
+
+    <!-- 添加概念对话框 -->
+    <div v-if="showAddItemDialog" class="dialog-overlay" @click="showAddItemDialog = false">
+      <div class="dialog-content large-dialog" @click.stop>
+        <h3>添加新概念到「{{ currentCategoryName }}」</h3>
+        <div class="form-group">
+          <label>概念名称：</label>
+          <textarea 
+            v-model="newItem.concept" 
+            class="form-textarea"
+            rows="2"
+            placeholder="例如：随机变量<br>確率変数<br>(かくりつへんすう)<br>Random Var"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label>人话解释：</label>
+          <textarea 
+            v-model="newItem.simpleExplain" 
+            class="form-textarea"
+            rows="2"
+            placeholder='例如：不是确定的值，而是用数字记录"不确定事件"的规则。'
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label>专业解释（公式、符号及其特性）：</label>
+          <textarea 
+            v-model="newItem.professionalExplain" 
+            class="form-textarea"
+            rows="3"
+            placeholder="例如：公式： $X: \\Omega \\to \\mathbb{R}$ <br>符号特性： <br>1. $\\Omega$ 是所有可能（如室温范围）。<br>2. $X$ 的取值具有随机分布。"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label>1D 生活例子和使用场景：</label>
+          <div class="example-scenario-group">
+            <div class="form-subgroup">
+              <label class="sub-label">生活例子：</label>
+              <input v-model="newItem.example1d" type="text" class="form-input" placeholder="例如：室温" />
+            </div>
+            <div class="form-subgroup">
+              <label class="sub-label">使用场景：</label>
+              <textarea 
+                v-model="newItem.scenario1d" 
+                class="form-textarea"
+                rows="2"
+                placeholder="描述使用场景..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>2D 图像处理例子和使用场景：</label>
+          <div class="example-scenario-group">
+            <div class="form-subgroup">
+              <label class="sub-label">图像处理例子：</label>
+              <input v-model="newItem.example2d" type="text" class="form-input" placeholder="例如：像素亮度" />
+            </div>
+            <div class="form-subgroup">
+              <label class="sub-label">使用场景：</label>
+              <textarea 
+                v-model="newItem.scenario2d" 
+                class="form-textarea"
+                rows="2"
+                placeholder="描述使用场景..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>1D Python 代码：</label>
+          <textarea 
+            v-model="newItem.code1d" 
+            class="form-textarea code-textarea"
+            rows="3"
+            placeholder="例如：import numpy as np&#10;temp_1d = np.random.normal(25, 2, 3)&#10;print(f&quot;1D室温: {temp_1d.round(2)}&quot;)"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label>2D Python 代码：</label>
+          <textarea 
+            v-model="newItem.code2d" 
+            class="form-textarea code-textarea"
+            rows="3"
+            placeholder="例如：import numpy as np&#10;pixel_2d = np.random.normal(128, 20, (3, 3))&#10;print(f&quot;2D像素亮度:\\n{pixel_2d.round(0)}&quot;)"
+          ></textarea>
+        </div>
+        <div class="dialog-actions">
+          <button @click="confirmAddItem" class="confirm-btn" :disabled="!canAddItem">
+            确认添加
+          </button>
+          <button @click="cancelAddItem" class="cancel-btn">
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useDataStore } from '../stores/dataStore'
 
 export default {
   name: 'MathTable',
   setup() {
     const router = useRouter()
+    const dataStore = useDataStore()
     
-    // 概率论数据
-    const probabilityData = ref([
+    // 默认概率论数据（用于初始化）
+    const defaultProbabilityData = [
       {
         concept: '随机变量<br>確率変数<br>(かくりつへんすう)<br>Random Var',
         simpleExplain: '不是确定的值，而是用数字记录"不确定事件"的规则。',
@@ -241,26 +408,190 @@ export default {
         hasError2d: false,
         renderedFormula: ''
       }
-    ])
+    ]
 
     // 优化理论数据（示例，可以后续添加）
-    const optimizationData = ref([
+    const defaultOptimizationData = [
       // 这里可以添加优化理论的概念
-    ])
+    ]
+
+    // 从 dataStore 加载数据并转换为 categories 格式
+    const loadCategoriesFromStore = () => {
+      const mathConcepts = dataStore.mathConcepts || []
+      
+      // 将 mathConcepts 转换为 categories 格式
+      // mathConcepts 中每个文档代表一个 category，包含 categoryName 和 items 数组
+      const categoryMap = new Map()
+      
+      mathConcepts.forEach(conceptDoc => {
+        const categoryName = conceptDoc.categoryName || '未分类'
+        const items = conceptDoc.items || []
+        
+        categoryMap.set(categoryName, {
+          name: categoryName,
+          data: ref(items.map(item => ({
+            ...item,
+            output1d: item.output1d || '',
+            hasError1d: item.hasError1d || false,
+            output2d: item.output2d || '',
+            hasError2d: item.hasError2d || false,
+            renderedFormula: ''
+          }))),
+          expanded: categoryName === '概率论', // 默认展开概率论
+          id: conceptDoc.id // 保存文档 ID 以便更新
+        })
+      })
+      
+      // 如果没有数据，使用默认数据并初始化到云端
+      if (categoryMap.size === 0) {
+        const probabilityCategory = {
+          name: '概率论',
+          data: ref([...defaultProbabilityData]),
+          expanded: true,
+          id: null
+        }
+        const optimizationCategory = {
+          name: '优化理论',
+          data: ref([...defaultOptimizationData]),
+          expanded: false,
+          id: null
+        }
+        
+        categoryMap.set('概率论', probabilityCategory)
+        categoryMap.set('优化理论', optimizationCategory)
+        
+        // 如果在线，初始化数据到云端
+        if (dataStore.isOnline && dataStore.currentLanguage === 'math') {
+          initCategoriesToCloud([probabilityCategory, optimizationCategory])
+        }
+      }
+      
+      return Array.from(categoryMap.values())
+    }
+
+    // 初始化 categories 到云端
+    const initCategoriesToCloud = async (categories) => {
+      for (const category of categories) {
+        try {
+          const conceptDoc = {
+            categoryName: category.name,
+            items: category.data.value.map(item => ({
+              ...item,
+              // 移除临时字段
+              output1d: '',
+              hasError1d: false,
+              output2d: '',
+              hasError2d: false,
+              renderedFormula: ''
+            }))
+          }
+          const newDoc = await dataStore.addMathConcept(conceptDoc)
+          category.id = newDoc.id
+        } catch (error) {
+          console.error('初始化分类到云端失败:', category.name, error)
+        }
+      }
+    }
 
     // 分类数据结构
-    const categories = ref([
-      {
-        name: '概率论',
-        data: probabilityData,
-        expanded: true  // 默认展开第一个分类
-      },
-      {
-        name: '优化理论',
-        data: optimizationData,
-        expanded: false
+    const categories = ref(loadCategoriesFromStore())
+
+    // 添加/删除学科和概念相关的状态
+    const showAddCategoryDialog = ref(false)
+    const newCategoryName = ref('')
+    const showAddItemDialog = ref(false)
+    const currentCategoryName = ref('')
+    const newItem = ref({
+      concept: '',
+      simpleExplain: '',
+      professionalExplain: '',
+      example1d: '',
+      scenario1d: '',
+      code1d: '',
+      example2d: '',
+      scenario2d: '',
+      code2d: '',
+      output1d: '',
+      hasError1d: false,
+      output2d: '',
+      hasError2d: false,
+      renderedFormula: ''
+    })
+
+    // 检查是否可以添加概念
+    const canAddItem = computed(() => {
+      return newItem.value.concept.trim() && newItem.value.simpleExplain.trim()
+    })
+
+    // 监听 dataStore.mathConcepts 的变化
+    watch(() => dataStore.mathConcepts, (newConcepts) => {
+      console.log('MathTable: mathConcepts 数据更新', newConcepts?.length)
+      categories.value = loadCategoriesFromStore()
+      // 数据更新后，重新渲染公式
+      nextTick(() => {
+        renderMathFormulas()
+      })
+    }, { deep: true })
+
+    // 保存整个 category 到 dataStore
+    const saveCategory = async (categoryName) => {
+      if (!dataStore.isOnline) {
+        console.warn('未连接到云端，无法保存数据')
+        return
       }
-    ])
+
+      if (dataStore.currentLanguage !== 'math') {
+        console.warn('当前语言不是 math，无法保存数学概念')
+        return
+      }
+
+      try {
+        // 查找对应的 category
+        const category = categories.value.find(cat => cat.name === categoryName)
+        if (!category) {
+          console.error('找不到分类:', categoryName)
+          return
+        }
+
+        // 构建要保存的数据
+        const conceptDoc = {
+          categoryName: categoryName,
+          items: category.data.value.map(item => ({
+            ...item,
+            // 移除临时字段
+            output1d: '',
+            hasError1d: false,
+            output2d: '',
+            hasError2d: false,
+            renderedFormula: ''
+          }))
+        }
+
+        // 如果 category 有 id，说明已存在，更新；否则创建新文档
+        if (category.id) {
+          await dataStore.updateMathConcept(category.id, conceptDoc)
+        } else {
+          // 创建新文档
+          const newDoc = await dataStore.addMathConcept(conceptDoc)
+          category.id = newDoc.id
+        }
+      } catch (error) {
+        console.error('保存数学分类失败:', error)
+      }
+    }
+
+    // 监听数据变化并自动保存（防抖）
+    const saveTimers = new Map()
+    const debouncedSave = (categoryName) => {
+      if (saveTimers.has(categoryName)) {
+        clearTimeout(saveTimers.get(categoryName))
+      }
+      const timer = setTimeout(() => {
+        saveCategory(categoryName)
+        saveTimers.delete(categoryName)
+      }, 2000) // 2秒后保存
+      saveTimers.set(categoryName, timer)
+    }
 
     // 切换分类展开/收缩
     const toggleCategory = async (categoryName) => {
@@ -545,8 +876,8 @@ export default {
     const statusMsg = ref('正在初始化 Python 环境...')
     let pyodide = null
 
-    // 初始化 Pyodide
-    onMounted(async () => {
+    // 初始化 Pyodide（在组件挂载时）
+    const initPyodide = async () => {
       // 先等待 KaTeX 加载，然后渲染数学公式（只渲染已展开的分类）
       await nextTick() // 确保 DOM 已挂载
       await renderMathFormulas()
@@ -579,6 +910,209 @@ export default {
         statusMsg.value = '初始化失败: ' + (error.message || String(error))
         isLoading.value = false
       }
+    }
+
+    // 添加学科
+    const addCategory = async () => {
+      const categoryName = newCategoryName.value.trim()
+      if (!categoryName) {
+        alert('请输入学科名称')
+        return
+      }
+
+      // 检查学科是否已存在
+      if (categories.value.some(cat => cat.name === categoryName)) {
+        alert('该学科已存在')
+        return
+      }
+
+      try {
+        // 创建新学科
+        const newCategory = {
+          name: categoryName,
+          data: ref([]),
+          expanded: true,
+          id: null
+        }
+
+        // 添加到本地
+        categories.value.push(newCategory)
+
+        // 保存到云端
+        if (dataStore.isOnline && dataStore.currentLanguage === 'math') {
+          const conceptDoc = {
+            categoryName: categoryName,
+            items: []
+          }
+          const newDoc = await dataStore.addMathConcept(conceptDoc)
+          newCategory.id = newDoc.id
+        }
+
+        cancelAddCategory()
+        alert('学科添加成功！')
+      } catch (error) {
+        console.error('添加学科失败:', error)
+        alert('添加学科失败：' + error.message)
+      }
+    }
+
+    // 取消添加学科
+    const cancelAddCategory = () => {
+      showAddCategoryDialog.value = false
+      newCategoryName.value = ''
+    }
+
+    // 确认删除学科
+    const confirmDeleteCategory = (categoryName) => {
+      if (!confirm(`确定要删除学科「${categoryName}」吗？\n\n删除后该学科下的所有概念将无法恢复！`)) {
+        return
+      }
+
+      deleteCategory(categoryName)
+    }
+
+    // 删除学科
+    const deleteCategory = async (categoryName) => {
+      try {
+        const category = categories.value.find(cat => cat.name === categoryName)
+        if (!category) {
+          alert('找不到该学科')
+          return
+        }
+
+        // 从本地删除
+        const index = categories.value.findIndex(cat => cat.name === categoryName)
+        if (index !== -1) {
+          categories.value.splice(index, 1)
+        }
+
+        // 从云端删除
+        if (category.id && dataStore.isOnline && dataStore.currentLanguage === 'math') {
+          await dataStore.deleteMathConcept(category.id)
+        }
+
+        alert('学科删除成功！')
+      } catch (error) {
+        console.error('删除学科失败:', error)
+        alert('删除学科失败：' + error.message)
+      }
+    }
+
+    // 显示添加概念对话框
+    const showAddItemDialogFunc = (categoryName) => {
+      currentCategoryName.value = categoryName
+      newItem.value = {
+        concept: '',
+        simpleExplain: '',
+        professionalExplain: '',
+        example1d: '',
+        scenario1d: '',
+        code1d: '',
+        example2d: '',
+        scenario2d: '',
+        code2d: '',
+        output1d: '',
+        hasError1d: false,
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      }
+      showAddItemDialog.value = true
+    }
+
+    // 确认添加概念
+    const confirmAddItem = async () => {
+      if (!canAddItem.value) {
+        alert('请至少填写概念名称和人话解释')
+        return
+      }
+
+      try {
+        const category = categories.value.find(cat => cat.name === currentCategoryName.value)
+        if (!category) {
+          alert('找不到该学科')
+          return
+        }
+
+        // 添加到本地
+        category.data.value.push({ ...newItem.value })
+
+        // 保存到云端
+        await saveCategory(currentCategoryName.value)
+
+        cancelAddItem()
+        alert('概念添加成功！')
+        
+        // 等待 DOM 更新后渲染公式
+        await nextTick()
+        await renderCategoryFormulas(category)
+      } catch (error) {
+        console.error('添加概念失败:', error)
+        alert('添加概念失败：' + error.message)
+      }
+    }
+
+    // 取消添加概念
+    const cancelAddItem = () => {
+      showAddItemDialog.value = false
+      currentCategoryName.value = ''
+      newItem.value = {
+        concept: '',
+        simpleExplain: '',
+        professionalExplain: '',
+        example1d: '',
+        scenario1d: '',
+        code1d: '',
+        example2d: '',
+        scenario2d: '',
+        code2d: '',
+        output1d: '',
+        hasError1d: false,
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      }
+    }
+
+    // 删除概念
+    const deleteItem = async (categoryName, itemIndex) => {
+      if (!confirm('确定要删除这个概念吗？')) {
+        return
+      }
+
+      try {
+        const category = categories.value.find(cat => cat.name === categoryName)
+        if (!category) {
+          alert('找不到该学科')
+          return
+        }
+
+        // 从本地删除
+        category.data.value.splice(itemIndex, 1)
+
+        // 保存到云端
+        await saveCategory(categoryName)
+
+        alert('概念删除成功！')
+      } catch (error) {
+        console.error('删除概念失败:', error)
+        alert('删除概念失败：' + error.message)
+      }
+    }
+
+    // 在组件挂载时初始化
+    onMounted(async () => {
+      // 如果当前语言是 math，确保数据已同步
+      if (dataStore.currentLanguage === 'math' && dataStore.isOnline) {
+        try {
+          await dataStore.syncFromCloud()
+        } catch (error) {
+          console.error('同步数学数据失败:', error)
+        }
+      }
+      
+      // 初始化 Pyodide
+      await initPyodide()
     })
 
     // 动态加载 Pyodide 脚本
@@ -653,13 +1187,31 @@ export default {
       statusMsg.value = '所有计算已完成'
     }
 
+
     return {
       categories,
       isLoading,
       statusMsg,
       runAllTests,
       toggleCategory,
-      setFormulaRef
+      setFormulaRef,
+      debouncedSave,
+      dataStore,
+      // 添加/删除学科
+      showAddCategoryDialog,
+      newCategoryName,
+      addCategory,
+      cancelAddCategory,
+      confirmDeleteCategory,
+      // 添加/删除概念
+      showAddItemDialog,
+      currentCategoryName,
+      newItem,
+      canAddItem,
+      showAddItemDialogFunc,
+      confirmAddItem,
+      cancelAddItem,
+      deleteItem
     }
   }
 }
@@ -734,17 +1286,102 @@ export default {
 .category-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.8rem;
   padding: 1rem 1.5rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  cursor: pointer;
   user-select: none;
   transition: all 0.3s ease;
 }
 
-.category-header:hover {
-  background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+.category-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex: 1;
+  cursor: pointer;
+}
+
+.category-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-header-left:hover {
+  opacity: 0.9;
+}
+
+.add-category-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.add-category-btn:hover {
+  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.add-item-btn,
+.delete-category-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-item-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.delete-category-btn:hover {
+  background: rgba(220, 53, 69, 0.8);
+  transform: scale(1.1);
+}
+
+.concept-cell-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.delete-item-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.delete-item-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+  background: #c82333;
 }
 
 .category-icon {
@@ -898,23 +1535,46 @@ export default {
   margin: 0 0.1em;
 }
 
-.example-1d,
-.example-2d {
-  color: #666;
-  font-style: italic;
-  max-width: 150px;
-  font-weight: 600;
+.example-scenario-1d,
+.example-scenario-2d {
+  max-width: 300px;
+  min-width: 200px;
 }
 
-.scenario-1d,
-.scenario-2d {
+.example-scenario-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.example-part {
+  color: #666;
+  font-style: italic;
+  font-weight: 600;
+  padding: 0.5rem;
+  background: #f0f9ff;
+  border-left: 3px solid #667eea;
+  border-radius: 4px;
+}
+
+.example-part strong {
+  color: #667eea;
+  margin-right: 0.5rem;
+}
+
+.scenario-part {
   color: #555;
   font-size: 0.85rem;
   line-height: 1.5;
-  max-width: 250px;
   word-wrap: break-word;
   background: #f8f9fa;
   padding: 0.8rem !important;
+  border-radius: 4px;
+}
+
+.scenario-part strong {
+  color: #333;
+  margin-right: 0.5rem;
 }
 
 .code-cell {
@@ -1041,6 +1701,22 @@ export default {
     max-width: 120px;
   }
 
+  .example-scenario-1d,
+  .example-scenario-2d {
+    max-width: 150px;
+    min-width: 120px;
+  }
+
+  .example-scenario-content {
+    gap: 0.5rem;
+  }
+
+  .example-part,
+  .scenario-part {
+    font-size: 0.7rem;
+    padding: 0.4rem !important;
+  }
+
   .code-cell {
     min-width: 100px;
     max-width: 150px;
@@ -1049,6 +1725,183 @@ export default {
   .output-cell {
     min-width: 80px;
     max-width: 120px;
+  }
+}
+
+/* 对话框样式 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dialog-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.dialog-content.large-dialog {
+  max-width: 800px;
+}
+
+.dialog-content h3 {
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.form-group {
+  margin-bottom: 1.2rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #666;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-textarea.code-textarea {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  background: #f8f9fa;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.example-scenario-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.form-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sub-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.confirm-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.confirm-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.cancel-btn:hover {
+  background: #5a6268;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .dialog-content {
+    padding: 1.5rem;
+    max-width: 95%;
+  }
+  
+  .dialog-content.large-dialog {
+    max-width: 95%;
+  }
+  
+  .category-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .category-header-left {
+    width: 100%;
+  }
+  
+  .category-header-right {
+    justify-content: flex-end;
   }
 }
 </style>

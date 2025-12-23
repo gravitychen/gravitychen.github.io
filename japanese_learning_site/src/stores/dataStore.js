@@ -15,6 +15,7 @@ export const useDataStore = defineStore('data', {
     words: [],
     sentences: [],
     qa: [],
+    mathConcepts: [], // 数学概念数据（用于 MathTable 组件）
     reviewProgress: {},
     quizHistory: [],
     // 存储"没记住"的项目ID
@@ -35,12 +36,13 @@ export const useDataStore = defineStore('data', {
     lastSyncTime: null,
     syncRetryCount: 0,
     // 新增多语言支持
-    currentLanguage: 'ja', // 当前学习语言：ja(日语), en(英语), hi(印地语), ko(韩语)
+    currentLanguage: 'ja', // 当前学习语言：ja(日语), en(英语), hi(印地语), ko(韩语), math(数学)
     supportedLanguages: [
       { code: 'ja', name: '日语', flag: '🇯🇵' },
       { code: 'en', name: '英语', flag: '🇺🇸' },
       { code: 'hi', name: '印地语', flag: '🇮🇳' },
-      { code: 'ko', name: '韩语', flag: '🇰🇷' }
+      { code: 'ko', name: '韩语', flag: '🇰🇷' },
+      { code: 'math', name: '数学', flag: '🔢' }
     ],
     // 语言代码到语音代码的映射表（支持世界前40%常用语言）
     languageToSpeechMap: {
@@ -346,6 +348,17 @@ export const useDataStore = defineStore('data', {
         this.restoreMasteredItemsFromProgress()
       }, this.currentLanguage)
 
+      // 监听数学概念变化（仅当当前语言为 math 时）
+      if (this.currentLanguage === 'math') {
+        dataService.listenToData('mathConcepts', (mathConcepts) => {
+          console.log('数学概念数据更新:', mathConcepts.length, '个')
+          this.mathConcepts = mathConcepts || []
+        }, this.currentLanguage)
+      } else {
+        // 如果当前语言不是 math，清空 mathConcepts
+        this.mathConcepts = []
+      }
+
       console.log('实时同步监听已设置')
     },
 
@@ -371,18 +384,26 @@ export const useDataStore = defineStore('data', {
         console.log('同步用户ID:', userId)
         
         // 使用 Promise.allSettled 确保部分失败不影响其他数据
-        const results = await Promise.allSettled([
+        const dataPromises = [
           dataService.getAllData('words', this.currentLanguage),
           dataService.getAllData('sentences', this.currentLanguage),
           dataService.getAllData('qa', this.currentLanguage)
-        ])
+        ]
+        
+        // 如果是 math 语言，也同步 mathConcepts
+        if (this.currentLanguage === 'math') {
+          dataPromises.push(dataService.getAllData('mathConcepts', this.currentLanguage))
+        }
+        
+        const results = await Promise.allSettled(dataPromises)
 
-        const [wordsResult, sentencesResult, qaResult] = results
+        const [wordsResult, sentencesResult, qaResult, mathConceptsResult] = results
         
         // 处理结果
         const words = wordsResult.status === 'fulfilled' ? wordsResult.value : []
         const sentences = sentencesResult.status === 'fulfilled' ? sentencesResult.value : []
         const qa = qaResult.status === 'fulfilled' ? qaResult.value : []
+        const mathConcepts = mathConceptsResult && mathConceptsResult.status === 'fulfilled' ? mathConceptsResult.value : []
 
         // 记录失败的同步
         const failures = results.filter(r => r.status === 'rejected')
@@ -394,6 +415,7 @@ export const useDataStore = defineStore('data', {
           words: words.length, 
           sentences: sentences.length, 
           qa: qa.length,
+          mathConcepts: mathConcepts ? mathConcepts.length : 0,
           failures: failures.length
         })
 
@@ -401,6 +423,9 @@ export const useDataStore = defineStore('data', {
         this.words = words || []
         this.sentences = sentences || []
         this.qa = qa || []
+        if (this.currentLanguage === 'math') {
+          this.mathConcepts = mathConcepts || []
+        }
 
         // 从云端加载复习进度（包括集中复习区数据）
         await this.syncReviewProgressFromCloud()
@@ -1229,6 +1254,68 @@ export const useDataStore = defineStore('data', {
         this.loadLanguageData()
       } else {
         console.error('不支持的语言代码:', languageCode)
+      }
+    },
+
+    // 数学概念管理（用于 MathTable 组件）
+    async addMathConcept(mathConcept) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能添加数据')
+      }
+
+      if (this.currentLanguage !== 'math') {
+        throw new Error('只能在数学语言模式下添加数学概念')
+      }
+
+      try {
+        console.log('添加数学概念到云端:', mathConcept)
+        const cloudConcept = await dataService.addData('mathConcepts', mathConcept, this.currentLanguage)
+        console.log('数学概念添加成功:', cloudConcept)
+        // 数据会通过实时监听自动更新
+        return cloudConcept
+      } catch (error) {
+        console.error('同步数学概念到云端失败:', error)
+        throw error
+      }
+    },
+
+    async updateMathConcept(id, mathConceptData) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能更新数据')
+      }
+
+      if (this.currentLanguage !== 'math') {
+        throw new Error('只能在数学语言模式下更新数学概念')
+      }
+
+      try {
+        console.log('更新数学概念:', id, mathConceptData)
+        await dataService.updateData('mathConcepts', id, mathConceptData, this.currentLanguage)
+        console.log('数学概念更新成功')
+        // 数据会通过实时监听自动更新
+      } catch (error) {
+        console.error('更新数学概念失败:', error)
+        throw error
+      }
+    },
+
+    async deleteMathConcept(id) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能删除数据')
+      }
+
+      if (this.currentLanguage !== 'math') {
+        throw new Error('只能在数学语言模式下删除数学概念')
+      }
+
+      try {
+        console.log('从云端删除数学概念:', id)
+        await dataService.deleteData('mathConcepts', id, this.currentLanguage)
+        console.log('数学概念删除成功')
+        // 数据会通过实时监听自动更新
+      } catch (error) {
+        console.error('从云端删除数学概念失败:', error)
+        throw error
       }
     },
 
