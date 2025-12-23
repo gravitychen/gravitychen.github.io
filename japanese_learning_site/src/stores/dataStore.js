@@ -4,7 +4,6 @@ import dataService from '../firebase/dataService.js'
 import authService from '../firebase/authService.js'
 import { defaultData } from '../data/defaultData.js'
 import { getDataOwnerId } from '../utils/dataOwnerId.js'
-import { getOrCreateDataOwnerId } from '../utils/dataOwnerId.js'
 
 // 常量定义
 const SYNC_RETRY_DELAY = 1000
