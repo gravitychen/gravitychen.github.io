@@ -485,7 +485,8 @@ export const useDataStore = defineStore('data', {
       const newWord = {
         japanese: word.japanese,
         chinese: word.chinese,
-        context: word.context || '' // 添加使用情境字段
+        context: word.context || '', // 添加使用情境字段
+        mnemonic: word.mnemonic || '' // 添加助记提示字段
       }
       
       try {
@@ -547,7 +548,8 @@ export const useDataStore = defineStore('data', {
       const newSentence = {
         japanese: sentence.japanese,
         chinese: sentence.chinese,
-        context: sentence.context || '' // 添加使用情境字段
+        context: sentence.context || '', // 添加使用情境字段
+        mnemonic: sentence.mnemonic || '' // 添加助记提示字段
       }
       
       try {

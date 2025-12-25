@@ -215,6 +215,10 @@ Vue 的模板（<template>）就像 HTML，但更灵活。在模板中，代码�
               <template v-else>
                 {{ getCurrentItem().chinese || getCurrentItem().answer }}
               </template>
+              <!-- 显示助记提示（如果有的话） -->
+              <div v-if="getCurrentItem().mnemonic" class="item-mnemonic">
+                <span class="mnemonic-label">💡 助记提示：</span>{{ getCurrentItem().mnemonic }}
+              </div>
             </div>
           </div>
 
@@ -621,6 +625,8 @@ export default {
           if (memoryMode.value === 'scenario') {
             sentenceStep.value = 1
           }
+          // 强制触发响应式更新，确保 showJapanese 的状态被正确应用
+          reviewItems.value = [...reviewItems.value]
         } else {
           // 集中复习模式：不应该使用 markCorrect，应该使用 moveToNormalReview
           // 这里保留逻辑以防万一，但集中复习区不会显示"记住了"按钮
@@ -641,6 +647,8 @@ export default {
           if (memoryMode.value === 'scenario') {
             sentenceStep.value = 1
           }
+          // 强制触发响应式更新，确保 showJapanese 的状态被正确应用
+          reviewItems.value = [...reviewItems.value]
         }
       } else {
         // 普通复习模式：标记为已复习，但不从集中复习区移除
@@ -679,6 +687,8 @@ export default {
         if (memoryMode.value === 'scenario') {
           sentenceStep.value = 1
         }
+        // 强制触发响应式更新，确保 showJapanese 的状态被正确应用
+        reviewItems.value = [...reviewItems.value]
       }
     }
 
@@ -732,6 +742,8 @@ export default {
         if (memoryMode.value === 'scenario') {
           sentenceStep.value = 1
         }
+        // 强制触发响应式更新，确保 showJapanese 的状态被正确应用
+        reviewItems.value = [...reviewItems.value]
       } else {
         // 普通复习模式：移动到熟记区
         const itemType = reviewType.value.slice(0, -1) // 'words' -> 'word', 'sentences' -> 'sentence'
@@ -770,6 +782,8 @@ export default {
         if (memoryMode.value === 'scenario') {
           sentenceStep.value = 1
         }
+        // 强制触发响应式更新，确保 showJapanese 的状态被正确应用
+        reviewItems.value = [...reviewItems.value]
       }
     }
 
@@ -819,6 +833,9 @@ export default {
         if (memoryMode.value === 'scenario') {
           sentenceStep.value = 1
         }
+        // 强制触发响应式更新，确保 showJapanese 的状态被正确应用
+        // 通过重新赋值数组来触发 Vue 的响应式更新
+        reviewItems.value = [...reviewItems.value]
       } else {
         reviewCompleted.value = true
         reviewMode.value = false
@@ -1348,6 +1365,25 @@ export default {
   line-height: 1.6;
   word-wrap: break-word;
   white-space: pre-wrap;
+}
+
+.item-mnemonic {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fff3cd;
+  border-radius: 8px;
+  border-left: 4px solid #ffc107;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #856404;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.item-mnemonic .mnemonic-label {
+  font-weight: 600;
+  color: #ff9800;
+  margin-right: 0.5rem;
 }
 
 .review-actions {

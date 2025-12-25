@@ -36,6 +36,15 @@
           rows="3"
         ></textarea>
       </div>
+      <div class="form-group">
+        <label>助记提示：</label>
+        <textarea 
+          v-model="newSentence.mnemonic" 
+          placeholder="请输入助记提示，帮助记忆这个句子（可选）"
+          class="form-textarea"
+          rows="3"
+        ></textarea>
+      </div>
       <div class="form-actions">
         <button @click="addSentence" class="save-btn" :disabled="!canSave">
           保存
@@ -85,6 +94,15 @@
               rows="3"
             ></textarea>
           </div>
+          <div class="form-group">
+            <label>助记提示：</label>
+            <textarea 
+              v-model="editingSentence.mnemonic" 
+              placeholder="请输入助记提示，帮助记忆这个句子（可选）"
+              class="form-textarea"
+              rows="3"
+            ></textarea>
+          </div>
           <div class="form-actions">
             <button @click="saveEdit" class="save-btn" :disabled="!canSaveEdit">
               保存
@@ -108,6 +126,9 @@
             </div>
             <div v-if="sentence.context" class="sentence-context">
               <span class="context-label">使用情境：</span>{{ sentence.context }}
+            </div>
+            <div v-if="sentence.mnemonic" class="sentence-mnemonic">
+              <span class="mnemonic-label">助记提示：</span>{{ sentence.mnemonic }}
             </div>
             <div class="sentence-date">{{ formatDate(sentence.createdAt) }}</div>
           </div>
@@ -149,13 +170,15 @@ export default {
     const newSentence = ref({
       japanese: '',
       chinese: '',
-      context: ''
+      context: '',
+      mnemonic: ''
     })
     const editingSentence = ref({
       id: '',
       japanese: '',
       chinese: '',
-      context: ''
+      context: '',
+      mnemonic: ''
     })
     const isPlaying = ref(false)
 
@@ -172,15 +195,16 @@ export default {
         dataStore.addSentence({
           japanese: newSentence.value.japanese.trim(),
           chinese: newSentence.value.chinese.trim(),
-          context: newSentence.value.context.trim()
+          context: newSentence.value.context.trim(),
+          mnemonic: newSentence.value.mnemonic.trim()
         })
-        newSentence.value = { japanese: '', chinese: '', context: '' }
+        newSentence.value = { japanese: '', chinese: '', context: '', mnemonic: '' }
         showAddForm.value = false
       }
     }
 
     const cancelAdd = () => {
-      newSentence.value = { japanese: '', chinese: '', context: '' }
+      newSentence.value = { japanese: '', chinese: '', context: '', mnemonic: '' }
       showAddForm.value = false
     }
 
@@ -189,7 +213,8 @@ export default {
         id: sentence.id,
         japanese: sentence.japanese,
         chinese: sentence.chinese,
-        context: sentence.context || ''
+        context: sentence.context || '',
+        mnemonic: sentence.mnemonic || ''
       }
       showEditForm.value = true
       showAddForm.value = false
@@ -201,10 +226,11 @@ export default {
           await dataStore.updateSentence(editingSentence.value.id, {
             japanese: editingSentence.value.japanese.trim(),
             chinese: editingSentence.value.chinese.trim(),
-            context: editingSentence.value.context.trim()
+            context: editingSentence.value.context.trim(),
+            mnemonic: editingSentence.value.mnemonic.trim()
           })
           showEditForm.value = false
-          editingSentence.value = { id: '', japanese: '', chinese: '', context: '' }
+          editingSentence.value = { id: '', japanese: '', chinese: '', context: '', mnemonic: '' }
         } catch (error) {
           alert(`更新失败：${error.message}`)
         }
@@ -213,7 +239,7 @@ export default {
 
     const cancelEdit = () => {
       showEditForm.value = false
-      editingSentence.value = { id: '', japanese: '', chinese: '', context: '' }
+      editingSentence.value = { id: '', japanese: '', chinese: '', context: '', mnemonic: '' }
     }
 
     const playAudio = async (sentence) => {
@@ -519,6 +545,23 @@ export default {
 .context-label {
   font-weight: 600;
   color: #667eea;
+}
+
+.sentence-mnemonic {
+  background: #fff3cd;
+  padding: 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #856404;
+  border-left: 3px solid #ffc107;
+}
+
+.mnemonic-label {
+  font-weight: 600;
+  color: #ff9800;
+  margin-right: 0.5rem;
 }
 
 .sentence-date {
