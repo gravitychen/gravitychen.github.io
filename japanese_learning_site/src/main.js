@@ -9,6 +9,7 @@ import QA from './components/QA.vue'
 import Review from './components/Review.vue'
 import Quiz from './components/Quiz.vue'
 import MathTable from './components/MathTable.vue'
+import Dictionary from './components/Dictionary.vue'
 import { useDataStore } from './stores/dataStore.js'
 
 const routes = [
@@ -19,6 +20,7 @@ const routes = [
   { path: '/review', component: Review },
   { path: '/quiz', component: Quiz },
   { path: '/math-table', component: MathTable },
+  { path: '/dictionary', component: Dictionary },
   // 语言路由
   { path: '/japanese', component: Home },
   { path: '/english', component: Home },

@@ -159,10 +159,6 @@
           <span class="btn-icon">📥</span>
           <span class="btn-text">导入数据</span>
         </button>
-        <button @click="migrateWords" class="data-btn migrate-btn" :disabled="isMigrating">
-          <span class="btn-icon">🔄</span>
-          <span class="btn-text">{{ isMigrating ? '迁移中...' : '迁移单词' }}</span>
-        </button>
       </div>
       
       <!-- 导入对话框 -->
@@ -199,7 +195,6 @@ export default {
     const dataStore = useDataStore()
     const showImportDialog = ref(false)
     const importData = ref('')
-    const isMigrating = ref(false)
     const showAddLanguageDialog = ref(false)
     const newLanguage = ref({
       code: '',
@@ -241,24 +236,6 @@ export default {
       } catch (error) {
         alert(`数据导入失败：${error.message}`)
         console.error('导入失败:', error)
-      }
-    }
-
-    // 迁移单词，添加情景字段
-    const migrateWords = async () => {
-      if (!confirm('确定要迁移所有单词吗？这将给没有情景字段的单词添加空的情景字段。')) {
-        return
-      }
-
-      isMigrating.value = true
-      try {
-        const result = await dataStore.migrateWordsAddContext()
-        alert(`迁移完成！\n已更新: ${result.migrated} 个单词\n已跳过: ${result.skipped} 个单词\n总计: ${result.total} 个单词`)
-      } catch (error) {
-        alert(`迁移失败：${error.message}`)
-        console.error('迁移失败:', error)
-      } finally {
-        isMigrating.value = false
       }
     }
 
@@ -351,12 +328,10 @@ export default {
       hasItemsToReview,
       showImportDialog,
       importData,
-      isMigrating,
       showAddLanguageDialog,
       newLanguage,
       exportData,
       importDataConfirm,
-      migrateWords,
       addLanguage,
       cancelAddLanguage,
       confirmDeleteLanguage,
@@ -599,22 +574,6 @@ export default {
   background: #138496;
   transform: translateY(-2px);
 }
-
-.migrate-btn {
-  background: #ffc107;
-  color: #333;
-}
-
-.migrate-btn:hover:not(:disabled) {
-  background: #e0a800;
-  transform: translateY(-2px);
-}
-
-.migrate-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 
 .import-dialog {
   position: fixed;
