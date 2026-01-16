@@ -74,7 +74,7 @@
               <tr v-for="(item, index) in category.data" :key="index">
                 <td class="tg-0pky concept-cell">
                   <div class="concept-cell-content">
-                    <span v-html="item.concept"></span>
+                    <span v-html="formatText(item.concept)"></span>
                     <div class="item-actions">
                       <button @click="showEditItemDialogFunc(category.name, index)" class="edit-item-btn" title="编辑概念">
                         ✏️
@@ -85,21 +85,21 @@
                     </div>
                   </div>
                 </td>
-                <td class="tg-0pky simple-explain">{{ item.simpleExplain }}</td>
+                <td class="tg-0pky simple-explain" v-html="formatText(item.simpleExplain)"></td>
                 <td class="tg-g6kh math-formula">
                   <div 
                     :ref="el => setFormulaRef(el, category.name, index)" 
                     class="formula-container"
-                    v-html="item.professionalExplain"
+                    v-html="formatText(item.professionalExplain)"
                   ></div>
                 </td>
                 <td class="tg-0pky example-scenario-1d">
                   <div class="example-scenario-content">
                     <div v-if="item.example1d" class="example-part">
-                      <strong>例子：</strong>{{ item.example1d }}
+                      <strong>例子：</strong><span v-html="formatText(item.example1d)"></span>
                     </div>
                     <div v-if="item.scenario1d" class="scenario-part">
-                      <strong>使用场景：</strong>{{ item.scenario1d }}
+                      <strong>使用场景：</strong><span v-html="formatText(item.scenario1d)"></span>
                     </div>
                   </div>
                 </td>
@@ -117,10 +117,10 @@
                 <td class="tg-0pky example-scenario-2d">
                   <div class="example-scenario-content">
                     <div v-if="item.example2d" class="example-part">
-                      <strong>例子：</strong>{{ item.example2d }}
+                      <strong>例子：</strong><span v-html="formatText(item.example2d)"></span>
                     </div>
                     <div v-if="item.scenario2d" class="scenario-part">
-                      <strong>使用场景：</strong>{{ item.scenario2d }}
+                      <strong>使用场景：</strong><span v-html="formatText(item.scenario2d)"></span>
                     </div>
                   </div>
                 </td>
@@ -343,15 +343,461 @@ import { useDataStore } from '../stores/dataStore'
 
 export default {
   name: 'MathTable',
+  methods: {
+    // 文本换行显示（支持 textarea 输入的 \n）
+    formatText(text) {
+      return (text || '').replace(/\n/g, '<br>')
+    }
+  },
   setup() {
     const router = useRouter()
     const dataStore = useDataStore()
     
+    // 默认微积分数据（用于初始化）
+    const defaultCalculusData = [
+      {
+        concept: '极限<br>極限<br>(きょくげん)<br>Limit',
+        simpleExplain: '当变量无限接近某个值时，函数趋近的结果。\n土话版：\n你一直靠近那个点，看函数最后要去哪儿。',
+        professionalExplain: '记号：$\\lim_{x \\to a} f(x) = L$ <br>符号特性： <br>1. 夹逼性：若 $g(x) \\le f(x) \\le h(x)$ 且极限相同，则 $f(x)$ 也收敛。<br>2. 连续函数在点处的极限等于函数值。',
+        example1d: '刹车速度趋近 0',
+        scenario1d: '使用场景：估算车辆减速过程中的速度极限，用于判断最终停车状态。',
+        code1d: 'import numpy as np\nx = np.array([1, 0.5, 0.25, 0.125])\nprint(f"f(x)=x^2, x->0: {x**2}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '迭代平滑收敛',
+        scenario2d: '使用场景：对图像反复平滑后，像素值趋于稳定，极限表示稳定图像。',
+        code2d: 'import numpy as np\nimg = np.ones((3, 3)) * 10\nfor _ in range(3):\n    img = (img + np.roll(img, 1, 0) + np.roll(img, -1, 0) + np.roll(img, 1, 1) + np.roll(img, -1, 1)) / 5\nprint(f"收敛后均值: {img.mean():.2f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '导数<br>導関数<br>(どうかんすう)<br>Derivative',
+        simpleExplain: '变化快不快，用一个斜率来描述。\n土话版：\n只适用1D。你只盯着一个方向，一路往前走，看坡有多陡。',
+        professionalExplain: '定义：$f\'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}$ <br>符号特性： <br>1. 线性：$(af+bg)\' = af\' + bg\'$。<br>2. 乘积法则：$(fg)\' = f\'g + fg\'$。',
+        example1d: '路程-时间斜率',
+        scenario1d: '使用场景：速度是位移对时间的导数，用于计算瞬时速度。',
+        code1d: 'import numpy as np\nf = lambda x: x**2\nx = 3\nh = 1e-3\nderivative = (f(x+h) - f(x-h)) / (2*h)\nprint(f"f\'(3)≈ {derivative:.3f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '图像边缘',
+        scenario2d: '使用场景：图像亮度变化剧烈处导数大，可用作边缘检测。',
+        code2d: 'import numpy as np\nimg = np.random.rand(5, 5)\ngx = np.diff(img, axis=1)\nprint(f"水平导数均值: {gx.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '微分<br>微分<br>(びぶん)<br>Differential',
+        simpleExplain: '用很小的变化近似描述函数的变化。\n土话版：\n只迈一小步，估一下值会变多少。',
+        professionalExplain: '定义：$dy = f\'(x)\\,dx$ <br>符号特性： <br>1. 线性近似：$\\Delta f \\approx f\'(x)\\Delta x$。<br>2. 误差与二阶小量相关。',
+        example1d: '温度微小变化',
+        scenario1d: '使用场景：传感器只记录很小的温度变化，用微分估算温度变化量。',
+        code1d: 'import numpy as np\nf = lambda x: x**2\nx = 2\ndx = 0.01\ndy = 2*x*dx\nprint(f"dy≈ {dy:.4f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '亮度微小扰动',
+        scenario2d: '使用场景：图像曝光变化很小，可用微分近似亮度变化。',
+        code2d: 'import numpy as np\nimg = np.random.rand(3, 3)\ndx = 0.01\nfprime = 2 * img\ndimg = fprime * dx\nprint(f"平均微小变化: {dimg.mean():.4f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '不定积分<br>不定積分<br>(ふていせきぶん)<br>Indefinite Integral',
+        simpleExplain: '把导数“倒回去”，得到原函数族。\n土话版：\n把变化率倒着拼回去，得到一堆可能的原函数。',
+        professionalExplain: '定义：$\\int f(x) dx = F(x) + C$，其中 $F\'(x)=f(x)$。<br>符号特性： <br>1. 线性：$\\int (af+bg) dx = a\\int f dx + b\\int g dx$。<br>2. 常数项 $C$ 表示一族函数。',
+        example1d: '速度求位移',
+        scenario1d: '使用场景：已知速度函数，求出位移函数（含常数）。',
+        code1d: 'def integral_2x(x):\n    return x**2\nprint("∫2x dx = x^2 + C")\nprint(f"F(3) = {integral_2x(3)}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '亮度累积',
+        scenario2d: '使用场景：对亮度变化率做积分，得到亮度分布的原始形态。',
+        code2d: 'import numpy as np\nrate = np.ones((3, 3)) * 0.5\nimg = np.cumsum(rate, axis=0)\nprint(f"累计亮度均值: {img.mean():.2f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '定积分<br>定積分<br>(ていせきぶん)<br>Definite Integral',
+        simpleExplain: '在区间上累计的总量。\n土话版：\n把一段路上的小变化都加起来，算总和。',
+        professionalExplain: '定义：$\\int_a^b f(x) dx$ <br>符号特性： <br>1. 面积意义：曲线与 x 轴之间的“有符号面积”。<br>2. 牛顿-莱布尼兹公式：$\\int_a^b f(x) dx = F(b)-F(a)$。',
+        example1d: '耗电量累计',
+        scenario1d: '使用场景：功率随时间变化，定积分得到总能耗。',
+        code1d: 'import numpy as np\nx = np.linspace(0, 1, 5)\ny = x**2\narea = np.trapz(y, x)\nprint(f"∫0^1 x^2 dx ≈ {area:.4f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '图像总亮度',
+        scenario2d: '使用场景：对图像亮度做“二维积分”，求总能量或曝光。',
+        code2d: 'import numpy as np\nimg = np.random.rand(4, 4)\nenergy = img.sum()\nprint(f"总亮度: {energy:.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '黎曼和<br>リーマン和<br>(りーまんわ)<br>Riemann Sum',
+        simpleExplain: '把区间切成小段，用矩形面积近似“总量”。\n土话版：\n把区间切成很多小块，用小矩形凑总面积。',
+        professionalExplain: '形式：$\\sum_{i=1}^n f(x_i)\\,\\Delta x$ <br>符号特性： <br>1. 分割越细，近似越好。<br>2. 左端点、右端点或中点取样都会收敛到同一积分值（若可积）。',
+        example1d: '位移估算',
+        scenario1d: '使用场景：用离散速度采样估算位移，总量来自速度乘以时间间隔的求和。',
+        code1d: 'import numpy as np\nn = 5\na, b = 0, 1\nx = np.linspace(a, b, n+1)\nmid = (x[:-1] + x[1:]) / 2\nriemann = np.sum(mid**2 * (b-a)/n)\nprint(f"中点黎曼和≈ {riemann:.4f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '图像能量近似',
+        scenario2d: '使用场景：像素看作小矩形，用像素亮度求和近似二维积分（总能量）。',
+        code2d: 'import numpy as np\nimg = np.random.rand(4, 4)\npixel_area = 0.5 * 0.5\nenergy = img.sum() * pixel_area\nprint(f"近似能量: {energy:.4f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '黎曼积分<br>リーマン積分<br>(りーまんせきぶん)<br>Riemann Integral',
+        simpleExplain: '黎曼和在分割无限细时的极限。\n土话版：\n小块切到无限细，凑出来就是精确面积。',
+        professionalExplain: '定义：$\\int_a^b f(x) dx = \\lim_{n\\to\\infty}\\sum_{i=1}^n f(x_i)\\,\\Delta x$ <br>符号特性： <br>1. 可积性要求函数足够“良好”。<br>2. 极限存在即为积分值。',
+        example1d: '面积极限',
+        scenario1d: '使用场景：用越来越细的矩形逼近曲线下方面积，得到精确面积。',
+        code1d: 'import numpy as np\nn = 1000\na, b = 0, 1\nx = np.linspace(a, b, n+1)\nmid = (x[:-1] + x[1:]) / 2\nriemann = np.sum(mid**2 * (b-a)/n)\nprint(f"黎曼积分≈ {riemann:.6f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '二维积分近似',
+        scenario2d: '使用场景：对二维函数做网格采样，求和近似二维积分。',
+        code2d: 'import numpy as np\nn = 50\nx = np.linspace(0, 1, n)\ny = np.linspace(0, 1, n)\nxx, yy = np.meshgrid(x, y)\nf = xx + yy\narea = np.sum(f) * (1/(n-1))**2\nprint(f"二维黎曼积分≈ {area:.4f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '面积解释<br>面積解釈<br>(めんせきかいしゃく)<br>Area Interpretation',
+        simpleExplain: '定积分可以看作曲线与坐标轴之间的面积。\n土话版：\n曲线下那片地有多大，就靠积分来算。',
+        professionalExplain: '当 $f(x)\\ge 0$ 时，$\\int_a^b f(x) dx$ 等于曲线与 x 轴围成的面积。若 $f(x)<0$，面积带符号。',
+        example1d: '三角形面积',
+        scenario1d: '使用场景：用积分计算几何面积，如三角形或梯形的面积。',
+        code1d: 'import numpy as np\nx = np.linspace(0, 2, 5)\ny = x\narea = np.trapz(y, x)\nprint(f"三角形面积≈ {area:.2f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '像素面积总和',
+        scenario2d: '使用场景：像素区域的积分等于“像素值 × 像素面积”的总和。',
+        code2d: 'import numpy as np\nimg = np.ones((3, 3))\npixel_area = 0.2 * 0.2\narea = img.sum() * pixel_area\nprint(f"总面积贡献: {area:.2f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '累积量<br>累積量<br>(るいせきりょう)<br>Cumulative Quantity',
+        simpleExplain: '把“变化率”累加起来得到“总量”。\n土话版：\n流量/速度一点点累加，就得到总量。',
+        professionalExplain: '若 $q(t)$ 是速率，则累计量 $Q(t)=\\int_{t_0}^t q(\\tau) d\\tau$。<br>符号特性： <br>1. $Q(t)$ 单调随速率符号变化。<br>2. 常用于能量、位移、剂量等累计计算。',
+        example1d: '流量累计',
+        scenario1d: '使用场景：已知流量随时间变化，用积分求出总流量。',
+        code1d: 'import numpy as np\nt = np.linspace(0, 4, 5)\nrate = np.array([1, 2, 3, 2, 1])\ncumulative = np.cumsum(rate) * (t[1]-t[0])\nprint(f"累计量: {cumulative}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '热量累积图',
+        scenario2d: '使用场景：对热量分布做累积，可观察热量聚集趋势。',
+        code2d: 'import numpy as np\nheat = np.random.rand(4, 4)\naccum = np.cumsum(np.cumsum(heat, axis=0), axis=1)\nprint(f"累积均值: {accum.mean():.4f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '无穷积分（反常积分）<br>広義積分<br>(こうぎせきぶん)<br>Improper Integral',
+        simpleExplain: '区间无限长或函数在某点无限大时的积分。\n土话版：\n路特别长或有无穷大，就用极限把总量算出来。',
+        professionalExplain: '定义：$\\int_a^{\\infty} f(x) dx = \\lim_{b\\to\\infty}\\int_a^b f(x) dx$ <br>符号特性： <br>1. 极限存在则积分收敛。<br>2. 常用于长尾分布、衰减过程。',
+        example1d: '长尾衰减',
+        scenario1d: '使用场景：对 $1/x^2$ 的长尾进行积分，判断总量是否有限。',
+        code1d: 'import numpy as np\nx = np.linspace(1, 100, 1000)\ny = 1 / (x**2)\narea = np.trapz(y, x)\nprint(f"∫1^∞ 1/x^2 dx ≈ {area:.4f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '二维衰减能量',
+        scenario2d: '使用场景：模拟远处能量衰减，积分域很大但总能量有限。',
+        code2d: 'import numpy as np\nx = np.linspace(-5, 5, 80)\ny = np.linspace(-5, 5, 80)\nxx, yy = np.meshgrid(x, y)\nenergy = np.exp(-xx**2 - yy**2)\narea = energy.sum() * (x[1]-x[0]) * (y[1]-y[0])\nprint(f"近似总能量: {area:.4f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '偏导数<br>偏微分<br>(へんびぶん)<br>Partial Derivative',
+        simpleExplain: '多变量函数中，只看某一个变量的变化。\n土话版：\n多条路里只看一条，其他不动，量它的坡度。',
+        professionalExplain: '定义：$\\frac{\\partial f}{\\partial x} = \\lim_{h \\to 0} \\frac{f(x+h,y)-f(x,y)}{h}$ <br>符号特性： <br>1. 只对一个变量求导。<br>2. 可用于构建梯度向量。',
+        example1d: '二维成本函数',
+        scenario1d: '使用场景：优化中对某个参数求偏导，观察该参数对成本的影响。',
+        code1d: 'def f(x, y):\n    return x**2 + y**2\nx, y = 3, 4\npartial_x = 2 * x\nprint(f"∂f/∂x = 2x = {partial_x}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '图像梯度方向',
+        scenario2d: '使用场景：对图像在 x、y 方向求偏导，得到边缘方向信息。',
+        code2d: 'import numpy as np\nimg = np.random.rand(5, 5)\ngy, gx = np.gradient(img)\nprint(f"∂f/∂x 均值: {gx.mean():.3f}, ∂f/∂y 均值: {gy.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '梯度<br>勾配<br>(こうばい)<br>Gradient',
+        simpleExplain: '函数“上升最快”的方向和速度。\n土话版：\n告诉你往哪儿走最陡、爬得最快。',
+        professionalExplain: '定义：$\\nabla f = \\left[\\frac{\\partial f}{\\partial x}, \\frac{\\partial f}{\\partial y}\\right]^T$ <br>符号特性： <br>1. 指向函数增大最快方向。<br>2. 用于最优化和边缘检测。',
+        example1d: '爬坡方向',
+        scenario1d: '使用场景：在参数空间中，沿负梯度方向做下降优化。',
+        code1d: 'import numpy as np\n# f(x)=x^2, 梯度为 2x\nx = 4\ngrad = 2*x\nprint(f"梯度: {grad}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '边缘强度',
+        scenario2d: '使用场景：梯度幅值大的区域通常是图像边缘。',
+        code2d: 'import numpy as np\nimg = np.random.rand(6, 6)\ngy, gx = np.gradient(img)\nmag = np.sqrt(gx**2 + gy**2)\nprint(f"梯度幅值均值: {mag.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      }
+    ]
+
+    // 默认信号与系统数据（用于初始化）
+    const defaultSignalSystemsData = [
+      {
+        concept: '离散时间信号<br>離散時間信号<br>(りさんじかんしんごう)<br>Discrete-Time Signal',
+        simpleExplain: '把连续变化的量按时间点采样，得到一串数。\n土话版：\n把连续的东西按点记录成一串数。',
+        professionalExplain: '定义：$x[n] = x(nT_s)$，其中 $T_s$ 为采样周期。<br>符号特性： <br>1. $n$ 为整数索引。<br>2. 采样率 $f_s=1/T_s$ 决定能表达的最高频率。',
+        example1d: '音频采样',
+        scenario1d: '使用场景：把连续音频信号每隔 1/44100 秒采样，得到数字音频。',
+        code1d: 'import numpy as np\nfs = 8\nn = np.arange(0, 8)\nx = np.sin(2*np.pi*1*n/fs)\nprint(f"采样序列: {x.round(3)}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '时间-空间采样',
+        scenario2d: '使用场景：视频是时间维度上的离散采样，图像是空间维度上的离散采样。',
+        code2d: 'import numpy as np\nframe = np.random.rand(3, 3)\nprint(f"一帧像素均值: {frame.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: 'LTI 系统<br>線形時不変システム<br>(せんけいじふへん)<br>LTI System',
+        simpleExplain: '线性且时不变的系统，输入和输出的关系稳定可预测。\n土话版：\n输入翻倍输出也翻倍，时间换了规则不变。',
+        professionalExplain: '定义：线性（叠加性）+ 时不变。<br>符号特性： <br>1. 满足 $x_1\\to y_1$, $x_2\\to y_2$ 则 $ax_1+bx_2\\to ay_1+by_2$。<br>2. 若 $x[n]\\to y[n]$，则 $x[n-n_0]\\to y[n-n_0]$。',
+        example1d: '加权平均滤波',
+        scenario1d: '使用场景：信号平滑滤波器通常是 LTI 系统，便于分析与设计。',
+        code1d: 'import numpy as np\nx = np.array([1, 2, 3, 4, 5])\nh = np.array([0.25, 0.5, 0.25])\ny = np.convolve(x, h, mode="same")\nprint(f"滤波输出: {y}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '图像模糊',
+        scenario2d: '使用场景：图像卷积模糊属于 2D LTI 系统。',
+        code2d: 'import numpy as np\nimg = np.random.rand(4, 4)\npsf = np.ones((3, 3)) / 9\n# 简单卷积近似\npad = np.pad(img, 1)\nblur = np.zeros_like(img)\nfor i in range(4):\n    for j in range(4):\n        blur[i, j] = np.sum(pad[i:i+3, j:j+3] * psf)\nprint(f"模糊均值: {blur.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '冲激响应<br>インパルス応答<br>(いんぱるすおうとう)<br>Impulse Response',
+        simpleExplain: '系统对“单位冲击”的输出，描述系统本质。\n土话版：\n给它一下，看它怎么响，系统性格就知道。',
+        professionalExplain: 'LTI 系统中，输出 $y[n]=x[n]*h[n]$，其中 $h[n]$ 是冲激响应。<br>符号特性： <br>1. 决定系统全部特性。<br>2. 卷积表达系统行为。',
+        example1d: '滤波核',
+        scenario1d: '使用场景：平滑滤波器的冲激响应就是其加权系数。',
+        code1d: 'import numpy as np\nh = np.array([0.2, 0.6, 0.2])\nprint(f"冲激响应: {h}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: 'PSF 点扩散函数',
+        scenario2d: '使用场景：成像系统的 PSF 就是 2D 冲激响应。',
+        code2d: 'import numpy as np\npsf = np.array([[0, 0.1, 0], [0.1, 0.6, 0.1], [0, 0.1, 0]])\nprint(f"PSF 和: {psf.sum():.2f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '卷积<br>畳み込み<br>(たたみこみ)<br>Convolution',
+        simpleExplain: '用一个“模板”滑过信号，计算加权和。\n土话版：\n拿滤镜挨着扫，边扫边加权。',
+        professionalExplain: '定义：$y[n]=(x*h)[n]=\\sum_k x[k]h[n-k]$。<br>符号特性： <br>1. 交换律、结合律、分配律。<br>2. 时域卷积对应频域乘法。',
+        example1d: '平滑滤波',
+        scenario1d: '使用场景：用小窗口对信号求加权平均，去除噪声。',
+        code1d: 'import numpy as np\nx = np.array([1, 3, 2, 5, 4])\nh = np.array([1, 1, 1]) / 3\ny = np.convolve(x, h, mode="same")\nprint(f"卷积结果: {y.round(2)}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '边缘检测',
+        scenario2d: '使用场景：用 Sobel 核与图像卷积检测边缘。',
+        code2d: 'import numpy as np\nimg = np.random.rand(4, 4)\nsobel = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])\npad = np.pad(img, 1)\nedge = np.zeros_like(img)\nfor i in range(4):\n    for j in range(4):\n        edge[i, j] = np.sum(pad[i:i+3, j:j+3] * sobel)\nprint(f"边缘均值: {edge.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '离散傅里叶变换<br>離散フーリエ変換<br>(りさんふーりえへんかん)<br>DFT',
+        simpleExplain: '把一串离散信号拆成不同频率的“配方比例”。\n土话版：\n把信号拆成各个频率的成分。',
+        professionalExplain: '定义：$X[k]=\\sum_{n=0}^{N-1} x[n] e^{-j2\\pi kn/N}$，$k=0,1,\\dots,N-1$。<br>符号特性： <br>1. 频率分辨率 $\\Delta f = f_s/N$。<br>2. $|X[k]|$ 为幅度谱，$\\angle X[k]$ 为相位谱。<br>3. 时域乘窗导致谱泄漏；零填充提升插值分辨率。',
+        example1d: '找主频',
+        scenario1d: '使用场景：用 DFT 识别信号主频，如电机转速或心率频率。',
+        code1d: 'import numpy as np\nfs = 32\nn = np.arange(0, 32)\nx = np.sin(2*np.pi*5*n/fs)\nX = np.fft.fft(x)\nmag = np.abs(X)\nprint(f"主频索引: {np.argmax(mag)}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '纹理频谱',
+        scenario2d: '使用场景：对图像做 2D DFT，观察纹理的频率分布。',
+        code2d: 'import numpy as np\nimg = np.random.rand(8, 8)\nF = np.fft.fft2(img)\nprint(f"频谱均值: {np.abs(F).mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: 'DFT 手工代码版<br>DFT Manual Implementation',
+        simpleExplain: '按公式双重循环，逐点计算频谱。\n土话版：\n照公式一项项算出来。',
+        professionalExplain: '直接使用 $X[k]=\\sum_{n=0}^{N-1} x[n] e^{-j2\\pi kn/N}$ 计算。<br>符号特性： <br>1. 复杂度 $O(N^2)$。<br>2. 便于理解频谱如何由时域叠加得到。',
+        example1d: '手工 DFT 主频',
+        scenario1d: '使用场景：教学展示 DFT 的定义式。',
+        code1d: 'import numpy as np\nfs = 32\nn = np.arange(0, 32)\nx = np.sin(2*np.pi*5*n/fs)\nN = len(x)\nX_manual = []\nfor k in range(N):\n    s = 0\n    for n in range(N):\n        s += x[n] * np.exp(-1j * 2*np.pi*k*n/N)\n    X_manual.append(s)\nX_manual = np.array(X_manual)\nprint(f"手工DFT主频索引: {np.argmax(np.abs(X_manual))}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '手工 2D DFT',
+        scenario2d: '使用场景：展示二维 DFT 的双重求和结构。',
+        code2d: 'import numpy as np\nimg = np.random.rand(8, 8)\nH, W = img.shape\nF_manual = np.zeros((H, W), dtype=complex)\nfor u in range(H):\n    for v in range(W):\n        s = 0\n        for x in range(H):\n            for y in range(W):\n                s += img[x, y] * np.exp(-1j * 2*np.pi * ((u*x)/H + (v*y)/W))\n        F_manual[u, v] = s\nprint(f"手工2D频谱均值: {np.abs(F_manual).mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '快速傅里叶变换<br>高速フーリエ変換<br>(こうそくふーりえへんかん)<br>FFT',
+        simpleExplain: '更快地算 DFT 的算法，不改变结果，只减少计算量。\n土话版：\n同样结果，算法更快。',
+        professionalExplain: '思想：分治把 N 点 DFT 拆成更小的 DFT。<br>符号特性： <br>1. 复杂度从 $O(N^2)$ 降到 $O(N\\log N)$。<br>2. 结果与 DFT 完全一致，只是计算更快。<br>3. 常用基 2 FFT，N 为 2 的幂效率最高。',
+        example1d: '快速频谱',
+        scenario1d: '使用场景：实时音频频谱分析需要高速计算，FFT 是标准方案。',
+        code1d: 'import numpy as np\nN = 64\nx = np.random.rand(N)\nX = np.fft.fft(x)\nprint(f"FFT 结果长度: {len(X)}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '频域滤波',
+        scenario2d: '使用场景：图像去噪可在频域做低通滤波，再做反变换得到平滑图像。',
+        code2d: 'import numpy as np\nimg = np.random.rand(8, 8)\nF = np.fft.fft2(img)\nF[2:-2, 2:-2] = 0\nimg_lp = np.fft.ifft2(F).real\nprint(f"滤波后均值: {img_lp.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: 'FFT 手工代码版<br>FFT Manual Implementation',
+        simpleExplain: '用递归分治思想，把序列分成偶数/奇数两部分。\n土话版：\n先拆奇偶，再合起来。',
+        professionalExplain: '基 2 FFT：$X[k]=E[k]+W_N^k O[k]$。<br>符号特性： <br>1. 复杂度 $O(N\\log N)$。<br>2. 需要长度为 2 的幂最方便。',
+        example1d: '手工 FFT',
+        scenario1d: '使用场景：教学展示 FFT 的递归拆分过程。',
+        code1d: 'import numpy as np\nx = np.random.rand(8)\n\ndef fft_recursive(x):\n    N = len(x)\n    if N == 1:\n        return x\n    even = fft_recursive(x[::2])\n    odd = fft_recursive(x[1::2])\n    factor = np.exp(-2j * np.pi * np.arange(N) / N)\n    return np.concatenate([even + factor[:N//2] * odd,\n                           even + factor[N//2:] * odd])\n\nX_manual = fft_recursive(x)\nprint(f"手工FFT长度: {len(X_manual)}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '手工 FFT 分治结构',
+        scenario2d: '使用场景：强调 FFT 是在 1D 上分治，2D 可对每行/列分别应用。',
+        code2d: 'import numpy as np\nx = np.random.rand(8)\n\ndef fft_recursive(x):\n    N = len(x)\n    if N == 1:\n        return x\n    even = fft_recursive(x[::2])\n    odd = fft_recursive(x[1::2])\n    factor = np.exp(-2j * np.pi * np.arange(N) / N)\n    return np.concatenate([even + factor[:N//2] * odd,\n                           even + factor[N//2:] * odd])\n\nX_manual = fft_recursive(x)\nprint(f"手工FFT示例幅度均值: {np.abs(X_manual).mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '频谱泄漏<br>スペクトル漏れ<br>(すぺくとるもれ)<br>Spectral Leakage',
+        simpleExplain: '截断信号会让频谱“散开”。\n土话版：\n窗口一剪，频谱就糊开了。',
+        professionalExplain: '有限长度采样等价于乘窗，频域是与窗函数频谱卷积。<br>符号特性： <br>1. 非整周期截断导致主频能量泄漏到邻频。<br>2. 加窗可降低旁瓣但会变宽主瓣。',
+        example1d: '非整周期截断',
+        scenario1d: '使用场景：采样窗口没对齐信号周期时，DFT 主峰变宽。',
+        code1d: 'import numpy as np\nN = 64\nn = np.arange(N)\nx = np.sin(2*np.pi*5.5*n/N)\nX = np.fft.fft(x)\nprint(f"最大频点: {np.argmax(np.abs(X))}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '纹理方向模糊',
+        scenario2d: '使用场景：图像块截断会让频谱扩散，纹理方向不再尖锐。',
+        code2d: 'import numpy as np\nimg = np.random.rand(8, 8)\nF = np.fft.fft2(img)\nprint(f"频谱均值: {np.abs(F).mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '窗函数<br>窓関数<br>(まどかんすう)<br>Window Function',
+        simpleExplain: '在截断前给信号乘一个“平滑帽子”。\n土话版：\n剪之前先戴个平滑帽。',
+        professionalExplain: '常见窗：汉宁、汉明、布莱克曼。<br>符号特性： <br>1. 降低旁瓣泄漏。<br>2. 主瓣变宽，分辨率下降。',
+        example1d: '汉宁窗',
+        scenario1d: '使用场景：频谱分析常用窗函数平衡泄漏与分辨率。',
+        code1d: 'import numpy as np\nN = 16\nw = np.hanning(N)\nprint(f"窗函数前3项: {w[:3].round(3)}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '2D 窗',
+        scenario2d: '使用场景：对图像块加 2D 窗降低边界效应。',
+        code2d: 'import numpy as np\nw = np.hanning(4)\nW2 = np.outer(w, w)\nprint(f"2D窗均值: {W2.mean():.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: 'Z 变换<br>Z変換<br>(ぜっとへんかん)<br>Z-Transform',
+        simpleExplain: '把离散序列映射到复平面，便于分析系统。\n土话版：\n换个坐标看，更好分析。',
+        professionalExplain: '定义：$X(z)=\\sum_{n=-\\infty}^{\\infty} x[n] z^{-n}$。<br>符号特性： <br>1. 收敛域决定稳定性。<br>2. 单位圆上取值对应 DTFT。',
+        example1d: '一阶系统',
+        scenario1d: '使用场景：用 Z 变换求差分方程的系统函数。',
+        code1d: 'import numpy as np\na = 0.5\n# x[n]=a^n u[n] 的 Z 变换: X(z)=1/(1-a z^{-1})\nprint("X(z)=1/(1-0.5 z^{-1})")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '二维系统类比',
+        scenario2d: '使用场景：2D 系统分析可类比 2D Z 变换。',
+        code2d: 'import numpy as np\nprint("2D Z 变换用于图像滤波分析")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '频率响应<br>周波数応答<br>(しゅうはすうおうとう)<br>Frequency Response',
+        simpleExplain: '系统对不同频率的放大或抑制。\n土话版：\n看系统喜欢哪些频率。',
+        professionalExplain: '定义：$H(e^{j\\omega})=\\sum_n h[n]e^{-j\\omega n}$。<br>符号特性： <br>1. 幅度响应决定增益。<br>2. 相位响应决定延迟与失真。',
+        example1d: '低通滤波器',
+        scenario1d: '使用场景：保留低频去噪，观察频响在高频处衰减。',
+        code1d: 'import numpy as np\nh = np.array([0.25, 0.5, 0.25])\nH = np.fft.fft(h, 64)\nprint(f"低频增益: {np.abs(H[0]):.2f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '成像系统 MTF',
+        scenario2d: '使用场景：MTF 就是系统的幅频响应，衡量成像清晰度。',
+        code2d: 'import numpy as np\npsf = np.ones((3, 3)) / 9\nmtf = np.abs(np.fft.fft2(psf, s=(16, 16)))\nprint(f"MTF 直流分量: {mtf[0,0]:.2f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: 'DTFT<br>離散時間フーリエ変換<br>(りさんじかんふーりえへんかん)<br>DTFT',
+        simpleExplain: '离散时间信号的连续频率谱。\n土话版：\n离散信号对应的连续频谱。',
+        professionalExplain: '定义：$X(e^{j\\omega})=\\sum_{n=-\\infty}^{\\infty} x[n] e^{-j\\omega n}$。<br>符号特性： <br>1. 频率是连续变量。<br>2. DFT 是对 DTFT 的采样。',
+        example1d: '频谱连续化',
+        scenario1d: '使用场景：理解 DFT 的本质是对 DTFT 进行等间隔采样。',
+        code1d: 'import numpy as np\nx = np.array([1, 2, 1])\nw = np.linspace(0, np.pi, 5)\nX = [np.sum(x * np.exp(-1j*wi*np.arange(len(x)))) for wi in w]\nprint(f"DTFT 采样幅度: {[round(abs(v),3) for v in X]}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '2D DTFT 类比',
+        scenario2d: '使用场景：二维 DTFT 用于分析图像频谱连续特性。',
+        code2d: 'import numpy as np\nprint("2D DTFT 是 2D 频域连续谱")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: 'FFT 频谱搬移<br>FFT Shift<br>FFT Spectrum Shift',
+        simpleExplain: '把频谱零频移到中心，便于观察。\n土话版：\n把低频挪到中间方便看。',
+        professionalExplain: '操作：$X_{shift} = \\text{fftshift}(X)$。<br>符号特性： <br>1. 不改变信息，仅重排频率顺序。<br>2. 图像频谱可视化常用。',
+        example1d: '频谱居中显示',
+        scenario1d: '使用场景：把低频放在中间，左右对称更直观。',
+        code1d: 'import numpy as np\nx = np.random.rand(8)\nX = np.fft.fft(x)\nXc = np.fft.fftshift(X)\nprint(f"中心频点幅度: {abs(Xc[4]):.3f}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '图像频谱可视化',
+        scenario2d: '使用场景：显示图像频谱时把低频移到中心，细节更清晰。',
+        code2d: 'import numpy as np\nimg = np.random.rand(8, 8)\nF = np.fft.fft2(img)\nFc = np.fft.fftshift(F)\nprint(f"中心频点幅度: {abs(Fc[4,4]):.3f}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      },
+      {
+        concept: '采样定理<br>標本化定理<br>(ひょうほんかていり)<br>Sampling Theorem',
+        simpleExplain: '采样频率要足够高，才能不失真。\n土话版：\n采样太慢会混叠。',
+        professionalExplain: '香农采样定理：若信号最高频率为 $f_{max}$，采样率需满足 $f_s \\ge 2 f_{max}$。<br>符号特性： <br>1. 低于奈奎斯特频率会发生混叠。<br>2. 低通滤波可抑制混叠。',
+        example1d: '混叠示例',
+        scenario1d: '使用场景：低采样率会让高频信号“伪装”成低频。',
+        code1d: 'import numpy as np\nf_true = 9\nfs = 10\nn = np.arange(0, 10)\nx = np.sin(2*np.pi*f_true*n/fs)\nprint(f"看起来的频率索引: {np.argmax(np.abs(np.fft.fft(x)))}")',
+        output1d: '',
+        hasError1d: false,
+        example2d: '图像采样',
+        scenario2d: '使用场景：图像缩小过度会产生锯齿，实质是空间采样不足导致混叠。',
+        code2d: 'import numpy as np\nimg = np.random.rand(8, 8)\nsmall = img[::2, ::2]\nprint(f"下采样尺寸: {small.shape}")',
+        output2d: '',
+        hasError2d: false,
+        renderedFormula: ''
+      }
+    ]
+
     // 默认概率论数据（用于初始化）
     const defaultProbabilityData = [
       {
         concept: '随机变量<br>確率変数<br>(かくりつへんすう)<br>Random Var',
-        simpleExplain: '不是确定的值，而是用数字记录"不确定事件"的规则。',
+        simpleExplain: '不是确定的值，而是用数字记录"不确定事件"的规则。\n土话版：\n不确定的量，用数字来描述。',
         professionalExplain: '公式： $X: \\Omega \\to \\mathbb{R}$ <br>符号特性： <br>1. $\\Omega$ 是所有可能（如室温范围）。<br>2. $X$ 的取值具有随机分布。',
         example1d: '室温',
         scenario1d: '使用场景：测量CCD工作温度时，需要监控室温变化。室温受环境因素影响，不是固定值，需要用随机变量来描述其不确定性。',
@@ -367,7 +813,7 @@ export default {
       },
       {
         concept: '期望<br>期待値<br>(きたいち)<br>Expectation',
-        simpleExplain: '长期来看的"平均水平"，代表了事物的中心位置。',
+        simpleExplain: '长期来看的"平均水平"，代表了事物的中心位置。\n土话版：\n长期平均值。',
         professionalExplain: '公式： $E[X] = \\int x f(x) dx$ <br>符号特性： <br>1. 线性： $E[aX+b] = aE[X]+b$。<br>2. 加性： 总期望等于各个部分期望之和。',
         example1d: '平均身高',
         scenario1d: '使用场景：在人口统计或医学研究中，需要了解某个群体的平均身高。通过计算期望值，可以预测该群体的典型身高水平，用于制定标准或进行健康评估。',
@@ -383,7 +829,7 @@ export default {
       },
       {
         concept: '方差<br>分散<br>(ぶんさん)<br>Variance',
-        simpleExplain: '衡量数据"稳不稳定"。方差大说明起伏大，方差小说明很稳。',
+        simpleExplain: '衡量数据"稳不稳定"。方差大说明起伏大，方差小说明很稳。\n土话版：\n波动有多大。',
         professionalExplain: '公式： $Var(X) = E[X^2] - (E[X])^2$ <br>符号特性： <br>1. 非负： 波动程度不会是负数。<br>2. 平方缩放： $Var(aX) = a^2 Var(X)$。',
         example1d: '空调波动',
         scenario1d: '使用场景：评估空调系统的稳定性。如果温度方差大，说明空调控制不稳定，需要调整或维修。方差小则说明温度控制良好，适合精密设备运行。',
@@ -399,7 +845,7 @@ export default {
       },
       {
         concept: '标准差<br>標準偏差<br>(ひょうじゅんへんさ)<br>Std Deviation',
-        simpleExplain: '方差的"还原版"。Scale单位和原数据一样，方便我们直观理解误差。',
+        simpleExplain: '方差的"还原版"。Scale单位和原数据一样，方便我们直观理解误差。\n土话版：\n波动的“平均幅度”。',
         professionalExplain: '公式： $\\sigma = \\sqrt{Var(X)}$ <br>符号特性： <br>1. 物理含义：偏离中心的平均距离。<br>2. 单位与原始数据（米、度、像素）一致。',
         example1d: '温度波动',
         scenario1d: '使用场景：在质量控制中，需要知道温度的标准差来判断测量精度。如果标准差为2度，意味着大部分测量值会在平均值±2度范围内，便于设定合理的容差范围。',
@@ -415,7 +861,7 @@ export default {
       },
       {
         concept: '协方差<br>共分散<br>(きょうぶんさん)<br>Covariance',
-        simpleExplain: '衡量两个事物是否"步调一致"。',
+        simpleExplain: '衡量两个事物是否"步调一致"。\n土话版：\n俩东西是不是同涨同跌。',
         professionalExplain: '公式： $Cov(X,Y) = E[(X-E_X)(Y-E_Y)]$ <br>符号特性： <br>1. 正值代表同向变化，负值代表反向变化。<br>2. 独立变量协方差为 0。',
         example1d: '身高体重',
         scenario1d: '使用场景：在健康研究中，需要了解身高和体重的关系。如果协方差为正，说明身高增加时体重也倾向于增加，可以用于预测和健康评估。',
@@ -431,7 +877,7 @@ export default {
       },
       {
         concept: '相关系数<br>相関係数<br>(そうかんけいすう)<br>Correlation',
-        simpleExplain: '剔除了大小影响的"纯粹相关性"。',
+        simpleExplain: '剔除了大小影响的"纯粹相关性"。\n土话版：\n把尺度去掉后的同步程度。',
         professionalExplain: '公式： $\\rho = \\frac{Cov(X,Y)}{\\sigma_X \\sigma_Y}$ <br>符号特性： <br>1. 范围 $[-1, 1]$。<br>2. $\\rho=1$ 代表完全同步，$\\rho=0$ 代表没关系。',
         example1d: '身高体重相关性',
         scenario1d: '使用场景：在医学研究中，需要量化身高和体重的相关强度。相关系数不受单位影响，可以比较不同研究的结果。接近1表示强正相关，用于建立预测模型和健康标准。',
@@ -447,7 +893,7 @@ export default {
       },
       {
         concept: '条件概率<br>条件付き確率<br>(じょうけんつきかくりつ)<br>Conditional',
-        simpleExplain: '"已知 A 发生，推测 B 发生的概率"。锁定背景，减少猜测。',
+        simpleExplain: '"已知 A 发生，推测 B 发生的概率"。锁定背景，减少猜测。\n土话版：\n在已知 A 发生的前提下看 B。',
         professionalExplain: '公式： $P(B \\vert A) = \\frac{P(AB)}{P(A)}$ <br>符号特性： <br>1. 缩小了决策范围（样本空间）。<br>2. 是逻辑推理的核心。',
         example1d: '下雨后温度',
         scenario1d: '使用场景：在气象预测中，已知今天下雨，需要预测温度。条件概率帮助我们基于已知信息（下雨）来更准确地预测温度，而不是使用无条件概率，提高预测精度。',
@@ -463,7 +909,7 @@ export default {
       },
       {
         concept: '全概率公式<br>全確率の定理<br>(ぜんかくりつのていり)<br>Law of Total Probability',
-        simpleExplain: '分而治之。如果想知道一个事件发生的总概率，就把它在各种可能情况（原因）下的概率分别算出来，再加权求和。',
+        simpleExplain: '分而治之。如果想知道一个事件发生的总概率，就把它在各种可能情况（原因）下的概率分别算出来，再加权求和。\n土话版：\n把各种情况的概率加权加起来。',
         professionalExplain: '公式： $P(A) = \\sum_{i} P(A \\vert B_i) P(B_i)$ <br>符号特性： <br>1. $\\{B_i\\}$ 必须是互斥且完备的（即涵盖所有可能的原因）。<br>2. 它将"局部条件概率"转化为"全局概率"。',
         example1d: '多天气情况',
         scenario1d: '使用场景：在长期温度预测中，需要考虑所有可能的天气情况（晴天、雨天、阴天）。全概率公式帮助我们综合各种天气条件下的温度概率，得到整体的温度期望，用于制定长期计划。',
@@ -479,7 +925,7 @@ export default {
       },
       {
         concept: '大数定律<br>大数の法則<br>(たいすうのほうそく)<br>LLN',
-        simpleExplain: '实验次数越多，平均值就越趋向于"天意"（期望值）。',
+        simpleExplain: '实验次数越多，平均值就越趋向于"天意"（期望值）。\n土话版：\n试得越多，平均越靠近真值。',
         professionalExplain: '公式： $\\bar{X}_n \\to E[X]$ <br>符号特性： <br>1. 样本均值具有收敛性。<br>2. 只有样本量 $n$ 够大，结论才可靠。',
         example1d: '多次测量',
         scenario1d: '使用场景：在精密测量中，单次测量可能有误差。通过多次测量并求平均，大数定律保证平均值会收敛到真实值。这是提高测量精度的标准方法，用于科学实验和质量控制。',
@@ -495,7 +941,7 @@ export default {
       },
       {
         concept: '中心极限定理<br>中心極限定理<br>(ちゅうしんきょくげんていり)<br>CLT',
-        simpleExplain: '无论原始分布多奇怪，大量微小独立误差叠加后，都是正态分布。',
+        simpleExplain: '无论原始分布多奇怪，大量微小独立误差叠加后，都是正态分布。\n土话版：\n很多小随机加起来会变成正态。',
         professionalExplain: '公式： $\\sum X_i \\sim N(n\\mu, n\\sigma^2)$ <br>符号特性： <br>1. 解释了为什么万物皆可"高斯"。<br>2. 计算区间估计（误差范围）的基石。',
         example1d: '误差叠加',
         scenario1d: '使用场景：在测量系统中，每个环节都有误差（传感器误差、传输误差、处理误差等）。中心极限定理说明，即使单个误差分布未知，多个误差叠加后总误差会接近正态分布，便于进行误差分析和置信区间估计。',
@@ -519,8 +965,8 @@ export default {
     // Richardson-Lucy 反卷积算法数据
     const defaultRLData = [
       {
-        concept: '泊松分布<br>Poisson Distribution',
-        simpleExplain: '单位时间/单位区域内，某种稀有事件出现的次数，服从泊松分布。在图像处理中，光子计数、像素亮度都遵循泊松分布。',
+        concept: '泊松分布<br>ポアソン分布<br>(ぽあそんぶんぷ)<br>Poisson Distribution',
+        simpleExplain: '单位时间/单位区域内，某种稀有事件出现的次数，服从泊松分布。在图像处理中，光子计数、像素亮度都遵循泊松分布。\n土话版：\n单位时间里稀稀拉拉的次数统计。',
         professionalExplain: '公式： $P(Y=k) = \\frac{\\lambda^k e^{-\\lambda}}{k!}$ <br>其中 $Y \\sim \\mathrm{Poisson}(\\lambda)$ <br>符号特性： <br>1. $\\lambda$ 既是期望也是方差： $E[Y] = \\mathrm{Var}(Y) = \\lambda$ <br>2. 独立像素： $Y_i \\sim \\mathrm{Poisson}((Hx)_i)$，其中 $(Hx)_i$ 是第 $i$ 个像素的期望光子数。',
         example1d: '路口车流量',
         scenario1d: '使用场景：在一分钟内，路口通过的车辆数量。如果平均每分钟通过 5 辆车，那么实际通过 0, 1, 2, ... 辆车的概率遵循泊松分布。',
@@ -535,8 +981,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '似然<br>Likelihood',
-        simpleExplain: '把观测数据当固定，把参数当变量，看在这个参数下，"出现现在这组数据"有多可能。似然函数衡量不同参数值产生当前观测数据的"可能性"。',
+        concept: '似然<br>尤度<br>(ゆうど)<br>Likelihood',
+        simpleExplain: '把观测数据当固定，把参数当变量，看在这个参数下，"出现现在这组数据"有多可能。似然函数衡量不同参数值产生当前观测数据的"可能性"。\n土话版：\n假设参数是这个值，看这组数据有多像。',
         professionalExplain: '给定观测 $y$，参数 $x$ 的似然： $L(x \\mid y) = P(y \\mid x)$ <br>在 RL 算法中： $L(x \\mid y) = \\prod_i \\mathrm{Poisson}(y_i \\mid (Hx)_i) = \\prod_i \\frac{((Hx)_i)^{y_i} e^{-(Hx)_i}}{y_i!}$ <br>符号特性： <br>1. 似然是参数的函数，不是概率分布（不归一化）<br>2. 似然值越大，说明该参数值越"可能"产生当前观测。',
         example1d: '掷硬币实验',
         scenario1d: '使用场景：掷硬币 10 次，出现 7 次正面。假设正面概率是 $p$，那么这组结果的似然是 $L(p) = p^7(1-p)^3$。不同的 $p$ 值会产生不同的似然值，$p=0.7$ 时似然最大。',
@@ -551,8 +997,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '极大似然估计<br>Maximum Likelihood Estimation (MLE)',
-        simpleExplain: '在所有可能的参数 $x$ 里，挑一个能"最容易"产生当前观测数据的。MLE 就是找使似然函数最大的参数值。',
+        concept: '极大似然估计<br>最尤推定<br>(さいゆうすいてい)<br>Maximum Likelihood Estimation (MLE)',
+        simpleExplain: '在所有可能的参数 $x$ 里，挑一个能"最容易"产生当前观测数据的。MLE 就是找使似然函数最大的参数值。\n土话版：\n挑一个最能解释数据的参数。',
         professionalExplain: '极大似然估计： $\\hat{x}_{ML} = \\arg\\max_x L(x \\mid y) = \\arg\\max_x \\log L(x \\mid y)$ <br>泊松情形下的对数似然： $\\log L(x) = \\sum_i \\big(y_i \\log(Hx)_i - (Hx)_i - \\log(y_i!)\\big)$ <br>符号特性： <br>1. 取对数后，乘法变加法，方便求导<br>2. 常数项 $\\log(y_i!)$ 在优化时可忽略<br>3. MLE 在泊松噪声下等价于最小化 KL 散度。',
         example1d: '硬币概率估计',
         scenario1d: '使用场景：用扔硬币的结果反推硬币真实的正面概率。如果 10 次中 7 次正面，MLE 估计 $\\hat{p} = 7/10 = 0.7$，这就是使似然函数最大的 $p$ 值。',
@@ -567,8 +1013,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '卷积成像模型<br>Convolution Imaging Model',
-        simpleExplain: '真实物体 $x$ 被模糊核 $h$ "抹开"得到 $Hx$，再加上泊松噪声，变成我们看到的 $y$。这是图像退化的数学模型。',
+        concept: '卷积成像模型<br>畳み込み成像モデル<br>(たたみこみせいぞうもでる)<br>Convolution Imaging Model',
+        simpleExplain: '真实物体 $x$ 被模糊核 $h$ "抹开"得到 $Hx$，再加上泊松噪声，变成我们看到的 $y$。这是图像退化的数学模型。\n土话版：\n清晰图被镜头糊一下再加噪声。',
         professionalExplain: '离散卷积形式： $(Hx)_i = \\sum_j h_{ij} x_j$ <br>观测模型： $y_i \\sim \\mathrm{Poisson}((Hx)_i)$ <br>其中： <br>1. $x$ 是真实清晰图像（向量或矩阵）<br>2. $H$ 是卷积算子（矩阵形式），$h$ 是点扩散函数 PSF<br>3. $y$ 是观测到的模糊+噪声图像<br>符号特性： $H$ 通常是 Toeplitz 或循环矩阵，可以用 FFT 加速计算。',
         example1d: '传感器响应',
         scenario1d: '使用场景：真实温度曲线 $x$ 被一个"传感器响应函数" $h$ 卷积，模拟传感器的空间分辨率限制，然后再测量得到带噪声的观测 $y$。',
@@ -583,8 +1029,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'RL 算法目标<br>RL Algorithm Objective',
-        simpleExplain: '给你模糊又有噪声的图 $y$，和已知的模糊核 $h$，想要找回原始清晰图 $x$。RL 算法通过极大似然估计来解决这个反卷积问题。',
+        concept: 'RL 算法目标<br>RL アルゴリズム目的<br>(あるごりずむもくてき)<br>RL Algorithm Objective',
+        simpleExplain: '给你模糊又有噪声的图 $y$，和已知的模糊核 $h$，想要找回原始清晰图 $x$。RL 算法通过极大似然估计来解决这个反卷积问题。\n土话版：\n知道怎么糊的，反着把清晰图找回来。',
         professionalExplain: 'RL 算法要解决的问题： $\\hat{x} = \\arg\\max_{x \\ge 0} P(y \\mid x)$ <br>其中 $P(y \\mid x) = \\prod_i \\mathrm{Poisson}(y_i \\mid (Hx)_i)$ 是泊松似然<br>约束条件： $x \\ge 0$（图像强度必须非负）<br>等价于： $\\hat{x} = \\arg\\max_{x \\ge 0} \\sum_i \\big(y_i \\log(Hx)_i - (Hx)_i\\big)$ <br>符号特性： <br>1. 这是一个约束优化问题<br>2. RL 使用乘性更新保证非负性<br>3. 迭代收敛到 MLE 解。',
         example1d: '温度曲线恢复',
         scenario1d: '使用场景：想根据"模糊的体温曲线"反推真实体温变化。已知传感器的响应函数（模糊核），通过 RL 算法可以从带噪声的观测中恢复原始温度信号。',
@@ -599,8 +1045,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '步骤1：写出对数似然<br>Step 1: Log-Likelihood',
-        simpleExplain: '先把所有像素的泊松概率乘起来，再取 log，方便推导。对数似然把乘法变加法，求导更容易。',
+        concept: '步骤1：写出对数似然<br>ステップ1：対数尤度<br>(たいすうゆうど)<br>Step 1: Log-Likelihood',
+        simpleExplain: '先把所有像素的泊松概率乘起来，再取 log，方便推导。对数似然把乘法变加法，求导更容易。\n土话版：\n把一堆乘法变加法好算。',
         professionalExplain: '对数似然函数： $\\log L(x) = \\sum_i \\big(y_i \\log(Hx)_i - (Hx)_i - \\log(y_i!)\\big)$ <br>简化形式（忽略常数项）： $\\log L(x) = \\sum_i \\big(y_i \\log(Hx)_i - (Hx)_i\\big)$ <br>符号特性： <br>1. $\\log(y_i!)$ 是常数，优化时可忽略<br>2. 对数变换保持单调性，最大化 $\\log L$ 等价于最大化 $L$<br>3. 对数似然便于求导和数值优化。',
         example1d: '对数变换的优势',
         scenario1d: '使用场景：把很多概率的乘法 $P_1 \\times P_2 \\times ...$ 变成加法 $\\log P_1 + \\log P_2 + ...$，这样求导数时，每个项独立求导，计算更简单。',
@@ -615,8 +1061,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '步骤2：计算梯度<br>Step 2: Compute Gradient',
-        simpleExplain: '看 log-likelihood 对 $x_j$ 的变化率。梯度告诉我们：如果稍微增加 $x_j$，对数似然会增加还是减少，增加多少。',
+        concept: '步骤2：计算梯度<br>ステップ2：勾配計算<br>(こうばいけいさん)<br>Step 2: Compute Gradient',
+        simpleExplain: '看 log-likelihood 对 $x_j$ 的变化率。梯度告诉我们：如果稍微增加 $x_j$，对数似然会增加还是减少，增加多少。\n土话版：\n看往哪儿调能让结果更好。',
         professionalExplain: '对 $x_j$ 求偏导： $\\frac{\\partial \\log L}{\\partial x_j} = \\sum_i \\Big(\\frac{y_i}{(Hx)_i} - 1\\Big) h_{ij}$ <br>矩阵形式： $\\nabla \\log L = H^T \\Big(\\frac{y}{Hx} - \\mathbf{1}\\Big)$ <br>其中： <br>1. $H^T$ 是 $H$ 的转置（反卷积方向的传播）<br>2. $\\frac{y}{Hx}$ 是逐元素除法（比值）<br>3. $\\mathbf{1}$ 是全 1 向量<br>符号特性： 如果 $y_i > (Hx)_i$（预测太小），梯度为正，敦促 $x$ 增大；反之亦然。',
         example1d: '梯度方向',
         scenario1d: '使用场景：梯度告诉我们优化的方向。如果观测值 $y_i$ 大于预测值 $(Hx)_i$，说明当前估计 $x$ 太小，梯度为正，应该增大 $x$。这是 RL 算法的核心思想。',
@@ -631,8 +1077,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '步骤3：乘性更新思想<br>Step 3: Multiplicative Update',
-        simpleExplain: '因为 $x$ 代表亮度/强度，必须非负，不想用普通的加减更新，就用"乘法"迭代。每次用当前值乘以一个非负因子，保证结果永远非负。',
+        concept: '步骤3：乘性更新思想<br>ステップ3：乗法更新<br>(じょうほうこうしん)<br>Step 3: Multiplicative Update',
+        simpleExplain: '因为 $x$ 代表亮度/强度，必须非负，不想用普通的加减更新，就用"乘法"迭代。每次用当前值乘以一个非负因子，保证结果永远非负。\n土话版：\n用乘法调，保证不出负值。',
         professionalExplain: '设计形如： $x^{(k+1)} = x^{(k)} \\cdot \\text{因子}$ <br>RL 算法选用： $\\text{因子} = H^T\\Big(\\frac{y}{Hx^{(k)}}\\Big)$ <br>更新公式： $x^{(k+1)} = x^{(k)} \\cdot H^T\\Big(\\frac{y}{Hx^{(k)}}\\Big)$ <br>符号特性： <br>1. 乘性更新保证 $x^{(k+1)} \\ge 0$（如果初始 $x^{(0)} \\ge 0$）<br>2. 因子 $H^T(\\frac{y}{Hx})$ 反映"预测误差"<br>3. 如果预测太小（$y > Hx$），因子 $> 1$，$x$ 增大；反之减小。',
         example1d: '温度信号恢复',
         scenario1d: '使用场景：不直接"加减温度"，而是"按比例放大或缩小"，保证不出现负值。如果观测值大于预测值，就按比例增大估计值；反之按比例减小。',
@@ -647,8 +1093,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '步骤4：RL 迭代公式<br>Step 4: RL Iteration Formula',
-        simpleExplain: '当前估计 $x^{(k)}$ 经过卷积预测 $Hx^{(k)}$，与观测 $y$ 做比值，再反卷积回来，作为乘法因子。这就是完整的 RL 迭代公式。',
+        concept: '步骤4：RL 迭代公式<br>ステップ4：RL反復式<br>(はんぷくしき)<br>Step 4: RL Iteration Formula',
+        simpleExplain: '当前估计 $x^{(k)}$ 经过卷积预测 $Hx^{(k)}$，与观测 $y$ 做比值，再反卷积回来，作为乘法因子。这就是完整的 RL 迭代公式。\n土话版：\n预测-比较-反推-乘回去，循环。',
         professionalExplain: '经典 RL 迭代公式： $x^{(k+1)} = x^{(k)} \\cdot H^T\\Big(\\frac{y}{Hx^{(k)}}\\Big)$ <br>归一化形式（PSF 未归一化时）： $x^{(k+1)} = x^{(k)} \\cdot \\frac{H^T\\big(\\frac{y}{Hx^{(k)}}\\big)}{H^T\\mathbf{1}}$ <br>其中： <br>1. $Hx^{(k)}$ 是当前估计的"预测观测"<br>2. $\\frac{y}{Hx^{(k)}}$ 是"误差比值"<br>3. $H^T(\\cdot)$ 是反卷积操作<br>符号特性： 迭代收敛到 MLE 解，保证非负性和能量守恒（如果 PSF 归一化）。',
         example1d: '1D RL 反卷积',
         scenario1d: '使用场景：用一维卷积和反卷积实现 RL 公式。初始化 $x^{(0)} = \\mathbf{1}$（全 1），迭代更新直到收敛。每次迭代：预测 → 比较 → 反卷积 → 乘性更新。',
@@ -667,8 +1113,8 @@ export default {
     // 逆问题（Inverse Problem）数据
     const defaultInverseProblemData = [
       {
-        concept: '逆问题定义<br>Inverse Problem Definition',
-        simpleExplain: '正问题是"从原因推结果"，逆问题是"从结果推原因"。在成像中，正问题是"清晰图像经过系统变成观测"，逆问题是"从观测恢复清晰图像"。',
+        concept: '逆问题定义<br>逆問題の定義<br>(ぎゃくもんだいのていぎ)<br>Inverse Problem Definition',
+        simpleExplain: '正问题是"从原因推结果"，逆问题是"从结果推原因"。在成像中，正问题是"清晰图像经过系统变成观测"，逆问题是"从观测恢复清晰图像"。\n土话版：\n从结果倒推原因。',
         professionalExplain: '正问题： $y = A(x) + \\epsilon$ <br>逆问题：给定 $y$，求 $x$ <br>其中： <br>1. $x$ 是未知的真实信号/图像<br>2. $A(\\cdot)$ 是前向算子（如卷积、采样、投影等）<br>3. $y$ 是观测数据<br>4. $\\epsilon$ 是噪声<br>符号特性： <br>- 逆问题通常是不适定的（ill-posed）：解不唯一或不稳定<br>- 需要正则化来稳定求解。',
         example1d: '温度测量',
         scenario1d: '使用场景：正问题是"真实温度经过传感器响应得到测量值"，逆问题是"从测量值反推真实温度"。传感器有延迟和噪声，需要逆问题方法恢复真实信号。',
@@ -683,8 +1129,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '不适定性<br>Ill-Posedness',
-        simpleExplain: '逆问题通常"不适定"：解可能不唯一（多个解都符合观测），或者解不稳定（观测的小误差导致解的巨大变化）。需要额外约束来稳定求解。',
+        concept: '不适定性<br>不適切性<br>(ふてきせつせい)<br>Ill-Posedness',
+        simpleExplain: '逆问题通常"不适定"：解可能不唯一（多个解都符合观测），或者解不稳定（观测的小误差导致解的巨大变化）。需要额外约束来稳定求解。\n土话版：\n解不稳或不唯一。',
         professionalExplain: 'Hadamard 适定性条件： <br>1. 解存在（Existence）<br>2. 解唯一（Uniqueness）<br>3. 解连续依赖于数据（Stability）<br>逆问题通常违反条件 2 或 3： <br>- 欠定系统：观测数 < 未知数，解不唯一<br>- 病态系统：条件数大，解不稳定<br>符号特性： <br>- 需要正则化： $\\hat{x} = \\arg\\min_x \\|y - A(x)\\|^2 + \\lambda R(x)$ <br>其中 $R(x)$ 是正则化项，$\\lambda$ 是正则化参数。',
         example1d: '欠定方程组',
         scenario1d: '使用场景：3 个方程求 5 个未知数，解不唯一。需要额外约束（如稀疏性、平滑性）来唯一确定解。这是压缩感知的基础。',
@@ -699,8 +1145,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '正则化<br>Regularization',
-        simpleExplain: '在逆问题求解中，加入"惩罚项"来约束解的性质，使不适定问题变成适定问题。常见的正则化包括：平滑性、稀疏性、非负性等。',
+        concept: '正则化<br>正則化<br>(せいそくか)<br>Regularization',
+        simpleExplain: '在逆问题求解中，加入"惩罚项"来约束解的性质，使不适定问题变成适定问题。常见的正则化包括：平滑性、稀疏性、非负性等。\n土话版：\n加个规矩让答案靠谱。',
         professionalExplain: '正则化目标函数： $\\hat{x} = \\arg\\min_x \\|y - A(x)\\|^2 + \\lambda R(x)$ <br>常见正则化项： <br>1. Tikhonov 正则化： $R(x) = \\|x\\|_2^2$（L2 范数，平滑解）<br>2. L1 正则化： $R(x) = \\|x\\|_1$（L1 范数，稀疏解）<br>3. TV 正则化： $R(x) = \\|\\nabla x\\|_1$（总变分，保持边缘）<br>符号特性： <br>- $\\lambda$ 控制数据拟合与正则化的平衡<br>- $\\lambda \\to 0$：过拟合观测（不稳定）<br>- $\\lambda \\to \\infty$：过度平滑（偏差大）。',
         example1d: '信号去噪',
         scenario1d: '使用场景：从带噪声的观测恢复平滑信号。使用 Tikhonov 正则化 $\\|x\\|_2^2$ 惩罚大的波动，得到平滑解。正则化参数 $\\lambda$ 控制平滑程度。',
@@ -715,8 +1161,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '最小二乘<br>Least Squares',
-        simpleExplain: '找使"预测误差平方和"最小的解。如果系统是线性的，有解析解；如果是非线性的，需要迭代优化。',
+        concept: '最小二乘<br>最小二乗<br>(さいしょうにじょう)<br>Least Squares',
+        simpleExplain: '找使"预测误差平方和"最小的解。如果系统是线性的，有解析解；如果是非线性的，需要迭代优化。\n土话版：\n让误差平方和最小。',
         professionalExplain: '最小二乘： $\\hat{x} = \\arg\\min_x \\|y - Ax\\|_2^2$ <br>线性系统解析解： $\\hat{x} = (A^T A)^{-1} A^T y$ <br>正则化最小二乘： $\\hat{x} = (A^T A + \\lambda I)^{-1} A^T y$ <br>符号特性： <br>1. 当 $A^T A$ 可逆时，有唯一解<br>2. 当系统欠定时，需要正则化<br>3. 计算复杂度：$O(n^3)$（矩阵求逆）。',
         example1d: '线性拟合',
         scenario1d: '使用场景：用直线 $y = ax + b$ 拟合数据点。最小二乘找使所有点到直线距离平方和最小的 $a, b$。这是最基础的逆问题求解方法。',
@@ -731,8 +1177,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '迭代重建算法<br>Iterative Reconstruction',
-        simpleExplain: '当系统太大或非线性时，无法直接求解析解，就用迭代方法逐步逼近最优解。每次迭代改进当前估计，直到收敛。',
+        concept: '迭代重建算法<br>反復再構成<br>(はんぷくさいこうせい)<br>Iterative Reconstruction',
+        simpleExplain: '当系统太大或非线性时，无法直接求解析解，就用迭代方法逐步逼近最优解。每次迭代改进当前估计，直到收敛。\n土话版：\n一轮轮改，越改越接近。',
         professionalExplain: '迭代格式： $x^{(k+1)} = x^{(k)} + \\alpha^{(k)} d^{(k)}$ <br>常见算法： <br>1. 梯度下降： $d^{(k)} = -\\nabla f(x^{(k)})$ <br>2. 共轭梯度： $d^{(k)}$ 与之前方向共轭<br>3. 期望最大化（EM）：用于泊松噪声<br>符号特性： <br>- $\\alpha^{(k)}$ 是步长（学习率）<br>- 收敛条件： $\\|x^{(k+1)} - x^{(k)}\\| < \\epsilon$ <br>- 迭代算法适合大规模问题。',
         example1d: '信号恢复',
         scenario1d: '使用场景：从欠采样观测恢复完整信号。用迭代算法逐步改进估计，每次迭代使预测更接近观测。迭代方法可以处理非线性约束（如非负性、稀疏性）。',
@@ -751,8 +1197,8 @@ export default {
     // 压缩感知高光谱图像重建数据
     const defaultCompressedSensingData = [
       {
-        concept: '压缩感知原理<br>Compressed Sensing (CS)',
-        simpleExplain: '如果信号是稀疏的（大部分值为0），可以用远少于信号长度的观测来完美恢复。关键在于信号的稀疏性和观测矩阵的"不相干性"。',
+        concept: '压缩感知原理<br>圧縮センシング原理<br>(あっしゅくせんしんぐげんり)<br>Compressed Sensing (CS)',
+        simpleExplain: '如果信号是稀疏的（大部分值为0），可以用远少于信号长度的观测来完美恢复。关键在于信号的稀疏性和观测矩阵的"不相干性"。\n土话版：\n东西本来很稀，用少量测量也能拼回。',
         professionalExplain: '压缩感知： $y = \\Phi x$ <br>其中： <br>1. $x \\in \\mathbb{R}^n$ 是稀疏信号（$\\|x\\|_0 = k \\ll n$）<br>2. $\\Phi \\in \\mathbb{R}^{m \\times n}$ 是观测矩阵（$m < n$，欠采样）<br>3. $y \\in \\mathbb{R}^m$ 是压缩观测<br>恢复条件： <br>- 稀疏性： $\\|x\\|_0 \\le k$<br>- 不相干性： $\\Phi$ 满足 RIP（限制等距性质）<br>恢复方法： $\\hat{x} = \\arg\\min \\|x\\|_1$ s.t. $y = \\Phi x$（L1 最小化）。',
         example1d: '稀疏信号采样',
         scenario1d: '使用场景：信号在某个域（如频域、小波域）是稀疏的，只有少数非零系数。可以用远少于信号长度的随机采样完美恢复。这是压缩感知的核心思想。',
@@ -767,8 +1213,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '稀疏性<br>Sparsity',
-        simpleExplain: '信号在某个表示域（如频域、小波域、梯度域）中，大部分系数为0或接近0，只有少数非零。稀疏性是压缩感知的前提条件。',
+        concept: '稀疏性<br>疎性<br>(そせい)<br>Sparsity',
+        simpleExplain: '信号在某个表示域（如频域、小波域、梯度域）中，大部分系数为0或接近0，只有少数非零。稀疏性是压缩感知的前提条件。\n土话版：\n大部分是0，只有少数有值。',
         professionalExplain: 'L0 范数（非零元素个数）： $\\|x\\|_0 = \\#\\{i: x_i \\neq 0\\}$ <br>L1 范数（绝对值之和）： $\\|x\\|_1 = \\sum_i |x_i|$ <br>稀疏信号： $\\|x\\|_0 = k \\ll n$ <br>符号特性： <br>1. L0 范数是非凸的，难以优化<br>2. L1 范数是 L0 的凸松弛，在满足 RIP 条件下等价<br>3. 自然信号在变换域（DCT、小波、梯度）通常是稀疏的。',
         example1d: '频域稀疏',
         scenario1d: '使用场景：音频信号在频域通常是稀疏的，只有少数频率分量。语音信号、音乐信号都可以用压缩感知方法，用少量频域采样恢复完整信号。',
@@ -783,8 +1229,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '高光谱图像<br>Hyperspectral Image',
-        simpleExplain: '高光谱图像在每个像素位置记录了数百个波长的光谱信息，形成"数据立方体"（空间×空间×光谱）。数据量巨大，但在某些域（如空间域、光谱域）是稀疏的。',
+        concept: '高光谱图像<br>ハイパースペクトル画像<br>(はいぱーすぺくとるがぞう)<br>Hyperspectral Image',
+        simpleExplain: '高光谱图像在每个像素位置记录了数百个波长的光谱信息，形成"数据立方体"（空间×空间×光谱）。数据量巨大，但在某些域（如空间域、光谱域）是稀疏的。\n土话版：\n每个像素带一整条光谱，数据很大。',
         professionalExplain: '高光谱数据立方体： $\\mathbf{X} \\in \\mathbb{R}^{H \\times W \\times B}$ <br>其中： <br>- $H, W$ 是空间维度<br>- $B$ 是光谱波段数（通常 100-300）<br>- 每个像素是 $B$ 维光谱向量<br>数据特性： <br>1. 数据量大： $H \\times W \\times B$ 个值<br>2. 空间相关性：相邻像素光谱相似<br>3. 光谱相关性：相邻波段相关<br>4. 稀疏性：在某个变换域稀疏。',
         example1d: '光谱曲线',
         scenario1d: '使用场景：一个像素的光谱曲线记录了该位置在不同波长下的反射率。不同材料有不同的"光谱签名"，可以用来识别物质。光谱曲线在频域或某些基下可能是稀疏的。',
@@ -799,8 +1245,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '高光谱压缩感知<br>Hyperspectral CS',
-        simpleExplain: '利用高光谱图像在空间和光谱域的稀疏性，用压缩感知方法进行欠采样和重建。可以大幅减少数据采集量，同时保持重建质量。',
+        concept: '高光谱压缩感知<br>ハイパースペクトル圧縮センシング<br>(はいぱーすぺくとるあっしゅくせんしんぐ)<br>Hyperspectral CS',
+        simpleExplain: '利用高光谱图像在空间和光谱域的稀疏性，用压缩感知方法进行欠采样和重建。可以大幅减少数据采集量，同时保持重建质量。\n土话版：\n少采点也能还原高光谱。',
         professionalExplain: '高光谱 CS 模型： $\\mathbf{Y} = \\Phi \\mathbf{X}$ <br>其中： <br>- $\\mathbf{X} \\in \\mathbb{R}^{H \\times W \\times B}$ 是高光谱数据立方体<br>- $\\Phi$ 是观测矩阵（可以是空间采样、光谱采样或混合）<br>- $\\mathbf{Y}$ 是压缩观测<br>重建问题： $\\hat{\\mathbf{X}} = \\arg\\min \\|\\mathbf{X}\\|_* + \\lambda \\|\\mathbf{X}\\|_{\\text{TV}}$ <br>s.t. $\\mathbf{Y} = \\Phi \\mathbf{X}$ <br>符号特性： <br>- $\\|\\cdot\\|_*$ 是核范数（低秩约束）<br>- $\\|\\cdot\\|_{\\text{TV}}$ 是总变分（空间平滑）<br>- 联合利用空间和光谱的稀疏性。',
         example1d: '光谱压缩',
         scenario1d: '使用场景：对每个像素的光谱向量进行压缩采样。如果光谱在某个基下稀疏，可以用少量随机测量恢复完整光谱。这可以减少光谱仪的数据采集量。',
@@ -815,8 +1261,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'L1 最小化重建<br>L1 Minimization',
-        simpleExplain: '在压缩感知中，用 L1 范数（绝对值之和）代替 L0 范数（非零个数）来促进稀疏性。L1 最小化是凸优化问题，可以用高效算法求解。',
+        concept: 'L1 最小化重建<br>L1最小化<br>(えるわんさいしょうか)<br>L1 Minimization',
+        simpleExplain: '在压缩感知中，用 L1 范数（绝对值之和）代替 L0 范数（非零个数）来促进稀疏性。L1 最小化是凸优化问题，可以用高效算法求解。\n土话版：\n用绝对值和逼出稀疏解。',
         professionalExplain: 'L1 最小化： $\\hat{x} = \\arg\\min_x \\|x\\|_1$ s.t. $y = \\Phi x$ <br>或带噪声： $\\hat{x} = \\arg\\min_x \\|x\\|_1 + \\frac{\\lambda}{2}\\|y - \\Phi x\\|_2^2$ <br>求解方法： <br>1. 基追踪（Basis Pursuit）<br>2. 迭代软阈值（IST）<br>3. ADMM（交替方向乘数法）<br>符号特性： <br>- L1 范数促进稀疏性（很多系数被压到0）<br>- 在满足 RIP 条件下，L1 解等价于 L0 解<br>- 计算复杂度：$O(n^3)$（线性规划）或 $O(n^2)$（迭代方法）。',
         example1d: '稀疏信号恢复',
         scenario1d: '使用场景：从压缩观测恢复稀疏信号。L1 最小化找使 L1 范数最小的解，自动促进稀疏性。这是压缩感知的标准重建方法。',
@@ -831,8 +1277,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '低秩+TV 重建<br>Low-Rank + TV Reconstruction',
-        simpleExplain: '高光谱图像在空间域有平滑性（TV 约束），在光谱域有低秩性（核范数约束）。联合使用这两个约束可以更好地重建高光谱图像。',
+        concept: '低秩+TV 重建<br>低ランク+TV再構成<br>(ていらんくてぃーぶいさいこうせい)<br>Low-Rank + TV Reconstruction',
+        simpleExplain: '高光谱图像在空间域有平滑性（TV 约束），在光谱域有低秩性（核范数约束）。联合使用这两个约束可以更好地重建高光谱图像。\n土话版：\n既要波段相关（低秩），又要图像平滑（TV）。',
         professionalExplain: '低秩+TV 模型： $\\hat{\\mathbf{X}} = \\arg\\min_{\\mathbf{X}} \\|\\mathbf{X}\\|_* + \\lambda_{\\text{TV}} \\|\\mathbf{X}\\|_{\\text{TV}} + \\frac{\\lambda}{2}\\|\\mathbf{Y} - \\Phi \\mathbf{X}\\|_F^2$ <br>其中： <br>1. $\\|\\mathbf{X}\\|_* = \\sum_i \\sigma_i$ 是核范数（奇异值之和，促进低秩）<br>2. $\\|\\mathbf{X}\\|_{\\text{TV}} = \\sum_{i,j} \\|\\nabla_{i,j} \\mathbf{X}\\|_2$ 是总变分（空间平滑）<br>3. $\\|\\cdot\\|_F$ 是 Frobenius 范数<br>符号特性： <br>- 低秩约束利用光谱相关性<br>- TV 约束利用空间平滑性<br>- 联合优化可以处理大规模问题。',
         example1d: '矩阵低秩性',
         scenario1d: '使用场景：将高光谱数据重新排列成矩阵（每行是一个像素的光谱，每列是一个波段的空间图像）。这个矩阵通常是低秩的（行之间相关），可以用低秩矩阵恢复方法。',
@@ -847,8 +1293,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'ADMM 算法<br>Alternating Direction Method of Multipliers',
-        simpleExplain: 'ADMM 是求解带约束优化问题的迭代算法，特别适合处理 L1、低秩、TV 等非光滑正则化项。通过引入辅助变量和拉格朗日乘数，将复杂问题分解为简单子问题。',
+        concept: 'ADMM 算法<br>交互方向乗数法<br>(こうごほうこうじょうすうほう)<br>Alternating Direction Method of Multipliers',
+        simpleExplain: 'ADMM 是求解带约束优化问题的迭代算法，特别适合处理 L1、低秩、TV 等非光滑正则化项。通过引入辅助变量和拉格朗日乘数，将复杂问题分解为简单子问题。\n土话版：\n把大问题拆小块轮流解。',
         professionalExplain: 'ADMM 求解： $\\min f(x) + g(z)$ s.t. $Ax + Bz = c$ <br>增广拉格朗日： $L_\\rho(x, z, u) = f(x) + g(z) + u^T(Ax + Bz - c) + \\frac{\\rho}{2}\\|Ax + Bz - c\\|_2^2$ <br>迭代更新： <br>1. $x^{(k+1)} = \\arg\\min_x L_\\rho(x, z^{(k)}, u^{(k)})$ <br>2. $z^{(k+1)} = \\arg\\min_z L_\\rho(x^{(k+1)}, z, u^{(k)})$ <br>3. $u^{(k+1)} = u^{(k)} + \\rho(Ax^{(k+1)} + Bz^{(k+1)} - c)$ <br>符号特性： <br>- $\\rho$ 是惩罚参数<br>- ADMM 适合分布式计算<br>- 收敛速度：$O(1/k)$。',
         example1d: 'L1 最小化 ADMM',
         scenario1d: '使用场景：用 ADMM 求解 L1 最小化问题。将 $\\|x\\|_1$ 分离成辅助变量 $z$，然后交替更新 $x$ 和 $z$。ADMM 可以高效处理大规模 L1 问题。',
@@ -867,8 +1313,8 @@ export default {
     // 相机模糊过程（Defocus）数据
     const defaultDefocusData = [
       {
-        concept: '薄透镜成像模型<br>Thin Lens Model',
-        simpleExplain: '相机镜头可以简化为薄透镜。物体发出的光线经过透镜聚焦，在像平面上形成清晰的像。当物体不在焦点位置时，像会变模糊。',
+        concept: '薄透镜成像模型<br>薄レンズモデル<br>(うすれんずもでる)<br>Thin Lens Model',
+        simpleExplain: '相机镜头可以简化为薄透镜。物体发出的光线经过透镜聚焦，在像平面上形成清晰的像。当物体不在焦点位置时，像会变模糊。\n土话版：\n镜头像一块薄镜，没对上焦点就会糊。',
         professionalExplain: '薄透镜公式： $\\frac{1}{f} = \\frac{1}{s} + \\frac{1}{s\'}$ <br>其中： <br>- $f$ 是焦距<br>- $s$ 是物距（物体到透镜的距离）<br>- $s\'$ 是像距（像到透镜的距离）<br>符号特性： <br>1. 当 $s = \\infty$ 时，$s\' = f$（无穷远物体聚焦在焦平面）<br>2. 当物体不在焦点时，像平面上的点会扩散成圆斑（Circle of Confusion, CoC）<br>3. CoC 直径： $c = \\frac{D|s\' - s\'_f|}{s\'}$，其中 $D$ 是光圈直径，$s\'_f$ 是焦点像距。',
         example1d: '单点光源成像',
         scenario1d: '使用场景：一个点光源在不同距离时，经过透镜在像平面上的成像。当点光源在焦点位置时，成像为点；当不在焦点时，成像为模糊圆斑。这是理解 defocus 的基础。',
@@ -883,8 +1329,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '散焦模糊（Defocus Blur）<br>Defocus Blur',
-        simpleExplain: '当物体不在相机焦点位置时，像平面上的点会扩散成圆斑，导致图像模糊。散焦程度取决于物体距离焦点的远近和光圈大小。',
+        concept: '散焦模糊（Defocus Blur）<br>散焦ぼけ<br>(さんしょうぼけ)<br>Defocus Blur',
+        simpleExplain: '当物体不在相机焦点位置时，像平面上的点会扩散成圆斑，导致图像模糊。散焦程度取决于物体距离焦点的远近和光圈大小。\n土话版：\n没对准焦点就成一圈糊。',
         professionalExplain: '散焦圆斑直径（CoC）： $c = \\frac{D|s\' - s\'_f|}{s\'} = D \\left|\\frac{1}{s\'_f} - \\frac{1}{s\'}\\right| s\'$ <br>其中： <br>- $D$ 是光圈直径（$D = f/N$，$N$ 是 f-number）<br>- $s\'_f$ 是焦点像距<br>- $s\'$ 是实际像距<br>散焦模糊模型： $I_{\\text{blur}}(x, y) = I_{\\text{sharp}}(x, y) * h_{\\text{defocus}}(x, y)$ <br>其中 $h_{\\text{defocus}}$ 是圆盘形 PSF： $h(r) = \\begin{cases} 1/(\\pi c^2) & \\text{if } r \\le c/2 \\\\ 0 & \\text{otherwise} \\end{cases}$ <br>符号特性： <br>- 散焦模糊是空间不变的（所有位置使用相同的 PSF）<br>- CoC 大小与物体距离焦点的距离成正比。',
         example1d: '不同距离的模糊',
         scenario1d: '使用场景：拍摄不同距离的物体时，只有焦点位置的物体清晰，其他距离的物体会模糊。距离焦点越远，模糊程度越大。这是景深效果的原理。',
@@ -899,8 +1345,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '散焦与物距的关系<br>Defocus vs Object Distance',
-        simpleExplain: '物体距离相机越远或越近（相对于焦点），散焦程度越大。散焦圆斑的大小与物体到焦点的距离差成正比。',
+        concept: '散焦与物距的关系<br>散焦と物体距離<br>(さんしょうとぶったいきょり)<br>Defocus vs Object Distance',
+        simpleExplain: '物体距离相机越远或越近（相对于焦点），散焦程度越大。散焦圆斑的大小与物体到焦点的距离差成正比。\n土话版：\n离焦越远越糊。',
         professionalExplain: '物距与像距关系： $s\' = \\frac{fs}{s - f}$ <br>散焦量： $\\Delta s\' = s\' - s\'_f = \\frac{fs}{s - f} - \\frac{fs_f}{s_f - f}$ <br>其中 $s_f$ 是焦点物距<br>CoC 与物距的关系： $c(s) = \\frac{Df}{s - f} \\left|\\frac{s - s_f}{s_f}\\right|$ <br>符号特性： <br>1. 当 $s = s_f$ 时，$c = 0$（无散焦）<br>2. 当 $|s - s_f|$ 增大时，$c$ 增大（散焦加剧）<br>3. 光圈越大（$D$ 越大），散焦越明显<br>4. 焦距越长（$f$ 越大），散焦越明显。',
         example1d: '不同物距的模糊程度',
         scenario1d: '使用场景：拍摄一组不同距离的物体，只有焦点位置的物体清晰，其他距离的物体模糊。距离焦点越远，模糊圆斑越大，图像越模糊。这是景深效果的定量描述。',
@@ -915,8 +1361,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'Depth from Defocus (DFD)<br>从散焦估计深度',
-        simpleExplain: '利用同一物体在不同对焦设置下的散焦程度差异，可以反推物体的深度（距离）。散焦程度越大，物体距离焦点越远。',
+        concept: 'Depth from Defocus (DFD)<br>散焦からの深度推定<br>(さんしょうからのしんどすいてい)<br>从散焦估计深度',
+        simpleExplain: '利用同一物体在不同对焦设置下的散焦程度差异，可以反推物体的深度（距离）。散焦程度越大，物体距离焦点越远。\n土话版：\n两张不同对焦的对比，算出距离。',
         professionalExplain: 'DFD 原理： 给定两个不同对焦设置的图像 $I_1, I_2$，散焦模糊不同： <br>$I_1(x, y) = I_{\\text{sharp}}(x, y) * h_1(x, y; s)$ <br>$I_2(x, y) = I_{\\text{sharp}}(x, y) * h_2(x, y; s)$ <br>其中 $h_1, h_2$ 是不同对焦设置下的 PSF，依赖于物体深度 $s$<br>深度估计： $\\hat{s} = \\arg\\min_s \\|I_1 - I_2 * (h_1^{-1} * h_2)\\|^2$ <br>或使用散焦量： $\\Delta s\'_1 - \\Delta s\'_2 = f\\left(\\frac{1}{s_1 - f} - \\frac{1}{s_2 - f}\\right) - f\\left(\\frac{1}{s - f}\\right)$ <br>符号特性： <br>- 需要至少两个不同对焦设置的图像<br>- 散焦差异越大，深度估计越准确<br>- 可以结合 CoC 大小直接估计深度。',
         example1d: '单点深度估计',
         scenario1d: '使用场景：拍摄同一个点光源，先用一个对焦设置拍一张，再用另一个对焦设置拍一张。比较两张图像中该点的模糊程度，可以反推点光源的距离。这是 DFD 的基本思想。',
@@ -931,8 +1377,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'DFD 深度公式<br>DFD Depth Formula',
-        simpleExplain: '从两个不同对焦设置的散焦量差异，可以直接计算物体的深度。公式将散焦圆斑大小、对焦设置和相机参数联系起来。',
+        concept: 'DFD 深度公式<br>DFD深度公式<br>(しんどこうしき)<br>DFD Depth Formula',
+        simpleExplain: '从两个不同对焦设置的散焦量差异，可以直接计算物体的深度。公式将散焦圆斑大小、对焦设置和相机参数联系起来。\n土话版：\n用散焦差算深度的公式。',
         professionalExplain: 'DFD 深度公式： $s = \\frac{f(s_1\' s_2\' - s_1\' s_f\' + s_2\' s_f\')}{s_1\' s_2\' - f(s_1\' + s_2\') + f s_f\'}$ <br>简化形式（当 $s_f\' \\approx f$ 时）： $s \\approx \\frac{f(c_1 s_2\' - c_2 s_1\')}{c_1 s_2\' - c_2 s_1\' - f(c_1 - c_2)}$ <br>其中： <br>- $s_1\', s_2\'$ 是两个对焦设置的像距<br>- $c_1, c_2$ 是观测到的散焦圆斑直径<br>- $s_f\'$ 是焦点像距<br>实用公式： $s = \\frac{f}{1 - \\frac{f}{s_f\'} + \\frac{c_1 - c_2}{D(s_1\' - s_2\')}}$ <br>符号特性： <br>- 需要已知两个对焦设置和对应的散焦量<br>- 散焦差异越大，深度估计越准确<br>- 公式假设已知相机参数（$f, D$）。',
         example1d: '单点深度计算',
         scenario1d: '使用场景：已知两个对焦设置下的散焦圆斑大小，可以直接用公式计算物体的深度。这是 DFD 的核心公式，将观测（散焦程度）与未知量（深度）联系起来。',
@@ -947,8 +1393,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: '散焦测量方法<br>Defocus Measurement',
-        simpleExplain: '如何从图像中测量散焦程度？可以通过分析图像的频率响应、边缘锐度、或直接估计 PSF 的大小来量化散焦。',
+        concept: '散焦测量方法<br>散焦測定<br>(さんしょうそくてい)<br>Defocus Measurement',
+        simpleExplain: '如何从图像中测量散焦程度？可以通过分析图像的频率响应、边缘锐度、或直接估计 PSF 的大小来量化散焦。\n土话版：\n用清晰度/频率来量散焦。',
         professionalExplain: '散焦测量方法： <br>1. 频域方法： $\\text{Defocus} \\propto -\\log(\\text{高频能量})$ <br>   高频能量： $E_{\\text{high}} = \\sum_{\\omega > \\omega_c} |\\mathcal{F}(I)(\\omega)|^2$ <br>2. 梯度方法： $\\text{Defocus} \\propto \\|\\nabla I\\|_2$（模糊图像梯度小）<br>3. Laplacian 方法： $\\text{Defocus} \\propto -\\sum |\\nabla^2 I|$（模糊图像二阶导数小）<br>4. PSF 估计：直接估计散焦圆斑半径 $r$，然后 $c = 2r$<br>符号特性： <br>- 散焦越大，高频能量越小<br>- 散焦越大，图像梯度越小<br>- 可以通过多尺度分析提高鲁棒性。',
         example1d: '频域散焦测量',
         scenario1d: '使用场景：对信号做 FFT，分析高频分量的能量。散焦信号的高频能量小，清晰信号的高频能量大。通过比较高频能量可以量化散焦程度。',
@@ -963,8 +1409,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'DFD 算法流程<br>DFD Algorithm',
-        simpleExplain: 'DFD 的完整流程：1) 用不同对焦设置拍摄两张图像，2) 测量每张图像的散焦程度，3) 用散焦差异和 DFD 公式计算深度，4) 生成深度图。',
+        concept: 'DFD 算法流程<br>DFDアルゴリズム<br>(あるごりずむ)<br>DFD Algorithm',
+        simpleExplain: 'DFD 的完整流程：1) 用不同对焦设置拍摄两张图像，2) 测量每张图像的散焦程度，3) 用散焦差异和 DFD 公式计算深度，4) 生成深度图。\n土话版：\n拍两张-测模糊-算深度-出深度图。',
         professionalExplain: 'DFD 算法步骤： <br>1. 图像采集： $I_1(x, y; s_1\'), I_2(x, y; s_2\')$ <br>   两个不同对焦设置 $s_1\', s_2\'$<br>2. 散焦测量： $c_1(x, y), c_2(x, y)$ <br>   对每个像素估计散焦圆斑大小<br>3. 深度计算： $s(x, y) = f\\left(\\frac{1}{1 - f/s_f\' + \\frac{c_1 - c_2}{D(s_1\' - s_2\')}}\\right)$ <br>4. 深度图后处理：平滑、去噪、插值<br>符号特性： <br>- 需要已知相机参数：$f, D, s_1\', s_2\'$<br>- 散焦测量是关键步骤，影响深度精度<br>- 可以扩展到多对焦设置提高精度。',
         example1d: '1D 深度估计流程',
         scenario1d: '使用场景：对一维信号（如深度剖面），用两个不同对焦设置采集，测量每个位置的散焦，然后用 DFD 公式计算深度。这是理解 DFD 算法的简化版本。',
@@ -979,8 +1425,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'DUAL Pixel 技术<br>DUAL Pixel Technology',
-        simpleExplain: '每个像素分成左右两个光电二极管，分别接收来自镜头左右两侧的光线。通过比较两个子像素的信号差异，可以检测相位差，用于快速对焦和深度估计。',
+        concept: 'DUAL Pixel 技术<br>デュアルピクセル技術<br>(でゅあるぴくせるぎじゅつ)<br>DUAL Pixel Technology',
+        simpleExplain: '每个像素分成左右两个光电二极管，分别接收来自镜头左右两侧的光线。通过比较两个子像素的信号差异，可以检测相位差，用于快速对焦和深度估计。\n土话版：\n一个像素分左右，比较差异来对焦。',
         professionalExplain: 'DUAL Pixel 结构： 每个像素 $P$ 分成两个子像素 $P_L, P_R$ <br>子像素信号： $I_L(x, y) = \\int_{\\Omega_L} I_{\\text{scene}}(x\', y\') h_L(x\' - x, y\' - y) dx\'dy\'$ <br>$I_R(x, y) = \\int_{\\Omega_R} I_{\\text{scene}}(x\', y\') h_R(x\' - x, y\' - y) dx\'dy\'$ <br>其中 $\\Omega_L, \\Omega_R$ 是左右子像素的视角范围<br>相位差： $\\Delta \\phi(x, y) = \\arg(I_L^*(x, y) I_R(x, y))$ <br>或简化： $\\Delta \\phi \\approx \\frac{I_L - I_R}{I_L + I_R}$ <br>符号特性： <br>- 当物体在焦点时，$I_L \\approx I_R$，相位差 $\\approx 0$<br>- 当物体散焦时，左右子像素看到不同的模糊，产生相位差<br>- 相位差大小与散焦程度相关。<br><br>参考论文：<a href="https://ieeexplore.ieee.org/document/6247756" target="_blank">Dual Pixel Sensors for Phase Detection Autofocus (IEEE)</a> | <a href="https://www.samsung.com/semiconductor/insights/tech-blog/dual-pixel-technology/" target="_blank">Samsung Dual Pixel Technology</a>',
         example1d: '1D 相位检测',
         scenario1d: '使用场景：对一维信号，DUAL pixel 传感器可以检测左右视角的差异。当信号在焦点时，左右子像素的信号相同；当散焦时，信号会有相位差，可以用来快速对焦。',
@@ -995,8 +1441,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'DUAL Pixel 深度估计<br>DUAL Pixel Depth Estimation',
-        simpleExplain: '利用 DUAL Pixel 的相位差信息，可以直接估计深度，无需多次对焦。相位差的大小和方向与物体的深度和散焦程度相关。',
+        concept: 'DUAL Pixel 深度估计<br>デュアルピクセル深度推定<br>(でゅあるぴくせるしんどすいてい)<br>DUAL Pixel Depth Estimation',
+        simpleExplain: '利用 DUAL Pixel 的相位差信息，可以直接估计深度，无需多次对焦。相位差的大小和方向与物体的深度和散焦程度相关。\n土话版：\n用左右差直接算深度。',
         professionalExplain: 'DUAL Pixel 深度公式： <br>相位差与散焦的关系： $\\Delta \\phi(x, y) = k \\cdot \\Delta s\'(x, y)$ <br>其中 $k$ 是比例常数，$\\Delta s\'$ 是散焦量<br>深度估计： $s(x, y) = \\frac{f}{1 - \\frac{f}{s_f\'} + \\frac{\\Delta \\phi(x, y)}{k D}}$ <br>或使用经验公式： $s = s_f \\cdot \\left(1 + \\alpha \\cdot \\Delta \\phi\\right)$ <br>其中 $\\alpha$ 是校准参数<br>符号特性： <br>- 相位差 $\\Delta \\phi$ 可以直接从 DUAL Pixel 数据计算<br>- 不需要多次对焦，单次拍摄即可估计深度<br>- 深度精度取决于相位差测量精度和校准质量。<br><br>参考论文：<a href="https://arxiv.org/abs/1712.00732" target="_blank">Depth from Defocus using Dual-Pixel Sensors (CVPR 2018)</a> | <a href="https://ieeexplore.ieee.org/document/9008470" target="_blank">Dual-Pixel Depth Estimation (IEEE)</a>',
         example1d: '1D 深度估计',
         scenario1d: '使用场景：从 DUAL Pixel 的左右子像素信号计算相位差，然后用相位差直接估计深度。这比传统的 DFD 方法更快，因为只需要一次拍摄。',
@@ -1011,8 +1457,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'Quad Pixel 技术<br>Quad Pixel Technology',
-        simpleExplain: '每个像素分成四个子像素（上下左右），分别接收来自不同方向的光线。Quad Pixel 提供更丰富的相位信息，可以实现更精确的对焦和深度估计。',
+        concept: 'Quad Pixel 技术<br>クアッドピクセル技術<br>(くあっどぴくせるぎじゅつ)<br>Quad Pixel Technology',
+        simpleExplain: '每个像素分成四个子像素（上下左右），分别接收来自不同方向的光线。Quad Pixel 提供更丰富的相位信息，可以实现更精确的对焦和深度估计。\n土话版：\n一个像素分四块，信息更全。',
         professionalExplain: 'Quad Pixel 结构： 每个像素 $P$ 分成四个子像素 $P_{TL}, P_{TR}, P_{BL}, P_{BR}$ <br>子像素信号： $I_{TL}(x, y), I_{TR}(x, y), I_{BL}(x, y), I_{BR}(x, y)$ <br>水平相位差： $\\Delta \\phi_H = \\frac{I_{TL} + I_{BL} - I_{TR} - I_{BR}}{I_{TL} + I_{TR} + I_{BL} + I_{BR}}$ <br>垂直相位差： $\\Delta \\phi_V = \\frac{I_{TL} + I_{TR} - I_{BL} - I_{BR}}{I_{TL} + I_{TR} + I_{BL} + I_{BR}}$ <br>总相位差： $\\Delta \\phi = \\sqrt{\\Delta \\phi_H^2 + \\Delta \\phi_V^2}$ <br>相位方向： $\\theta = \\arctan2(\\Delta \\phi_V, \\Delta \\phi_H)$ <br>符号特性： <br>- Quad Pixel 提供 2D 相位信息（水平和垂直）<br>- 可以检测任意方向的散焦<br>- 比 DUAL Pixel 更精确，但计算更复杂。<br><br>参考论文：<a href="https://ieeexplore.ieee.org/document/9010634" target="_blank">Quad-Bayer Pattern for Phase Detection (IEEE)</a> | <a href="https://www.sony-semicon.com/en/technology/imaging/quad-bayer.html" target="_blank">Sony Quad-Bayer Technology</a>',
         example1d: 'Quad Pixel 1D 分析',
         scenario1d: '使用场景：对一维信号，Quad Pixel 可以同时检测水平和垂直方向的相位差。虽然 1D 信号主要用水平相位差，但 Quad Pixel 结构提供了更鲁棒的测量。',
@@ -1027,8 +1473,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'Quad Pixel 深度估计<br>Quad Pixel Depth Estimation',
-        simpleExplain: '利用 Quad Pixel 的 2D 相位信息，可以更精确地估计深度。水平和垂直相位差提供了更丰富的散焦信息，特别适合处理复杂场景。',
+        concept: 'Quad Pixel 深度估计<br>クアッドピクセル深度推定<br>(くあっどぴくせるしんどすいてい)<br>Quad Pixel Depth Estimation',
+        simpleExplain: '利用 Quad Pixel 的 2D 相位信息，可以更精确地估计深度。水平和垂直相位差提供了更丰富的散焦信息，特别适合处理复杂场景。\n土话版：\n用2D相位差算深度更准。',
         professionalExplain: 'Quad Pixel 深度公式： <br>2D 相位差： $\\boldsymbol{\\Delta \\phi} = [\\Delta \\phi_H, \\Delta \\phi_V]^T$ <br>相位差幅值： $|\\Delta \\phi| = \\sqrt{\\Delta \\phi_H^2 + \\Delta \\phi_V^2}$ <br>深度估计： $s(x, y) = s_f \\cdot \\left(1 + \\boldsymbol{\\alpha}^T \\boldsymbol{\\Delta \\phi}(x, y)\\right)$ <br>其中 $\\boldsymbol{\\alpha} = [\\alpha_H, \\alpha_V]^T$ 是校准向量<br>或使用非线性模型： $s = s_f \\cdot \\exp(\\beta |\\Delta \\phi|)$ <br>符号特性： <br>- 2D 相位信息提供更鲁棒的深度估计<br>- 可以处理各向异性的散焦（不同方向散焦不同）<br>- 相位方向 $\\theta$ 可以用于检测边缘方向<br>- 比 DUAL Pixel 更精确，但需要更复杂的校准。<br><br>参考论文：<a href="https://arxiv.org/abs/2008.09724" target="_blank">Quad-Bayer Depth Estimation (ECCV 2020)</a> | <a href="https://ieeexplore.ieee.org/document/9157500" target="_blank">Multi-Directional Phase Detection (IEEE)</a>',
         example1d: 'Quad Pixel 1D 深度',
         scenario1d: '使用场景：虽然 Quad Pixel 主要用于 2D 图像，但在 1D 信号中，四个子像素可以提供更鲁棒的相位测量，减少噪声影响，提高深度估计精度。',
@@ -1043,8 +1489,8 @@ export default {
         renderedFormula: ''
       },
       {
-        concept: 'DUAL vs Quad Pixel<br>DUAL vs Quad Pixel Comparison',
-        simpleExplain: 'DUAL Pixel 提供 1D 相位信息（左右），Quad Pixel 提供 2D 相位信息（上下左右）。Quad Pixel 更精确但更复杂，DUAL Pixel 更简单但足够大多数应用。',
+        concept: 'DUAL vs Quad Pixel<br>デュアル/クアッド比較<br>(ひかく)<br>DUAL vs Quad Pixel Comparison',
+        simpleExplain: 'DUAL Pixel 提供 1D 相位信息（左右），Quad Pixel 提供 2D 相位信息（上下左右）。Quad Pixel 更精确但更复杂，DUAL Pixel 更简单但足够大多数应用。\n土话版：\n一个一维，一个二维；准度和复杂度不同。',
         professionalExplain: '对比： <br>1. 相位信息维度： <br>   - DUAL: $\\Delta \\phi \\in \\mathbb{R}$（1D，水平方向）<br>   - Quad: $\\boldsymbol{\\Delta \\phi} \\in \\mathbb{R}^2$（2D，水平+垂直）<br>2. 精度： <br>   - DUAL: 适合大多数场景，精度足够<br>   - Quad: 更高精度，特别适合复杂场景<br>3. 计算复杂度： <br>   - DUAL: $O(n)$（n 是像素数）<br>   - Quad: $O(n)$（相同，但常数更大）<br>4. 应用： <br>   - DUAL: 主流手机相机（iPhone, Samsung）<br>   - Quad: 高端旗舰机型<br>符号特性： <br>- Quad Pixel 可以检测任意方向的散焦<br>- DUAL Pixel 主要检测水平方向的散焦<br>- 两者都可以单次拍摄估计深度。',
         example1d: '相位信息对比',
         scenario1d: '使用场景：对于 1D 信号，DUAL Pixel 提供左右相位差，Quad Pixel 提供左右+上下相位差。虽然 1D 信号主要用水平相位差，但 Quad Pixel 的垂直信息可以提供额外的鲁棒性。',
@@ -1087,55 +1533,80 @@ export default {
         })
       })
       
-      // 如果没有数据，使用默认数据并初始化到云端
-      if (categoryMap.size === 0) {
-        const probabilityCategory = {
-          name: '概率论',
-          data: ref([...defaultProbabilityData]),
+      // 默认分类列表（用于初始化或补齐缺失分类）
+      const buildDefaultCategories = () => ([
+        {
+          name: '微积分',
+          data: ref([...defaultCalculusData]),
           expanded: true,
           id: null
-        }
-        const optimizationCategory = {
+        },
+        {
+          name: '信号与系统',
+          data: ref([...defaultSignalSystemsData]),
+          expanded: false,
+          id: null
+        },
+        {
+          name: '概率论',
+          data: ref([...defaultProbabilityData]),
+          expanded: false,
+          id: null
+        },
+        {
           name: '优化理论',
           data: ref([...defaultOptimizationData]),
           expanded: false,
           id: null
-        }
-        const rlCategory = {
+        },
+        {
           name: 'Richardson-Lucy 反卷积算法',
           data: ref([...defaultRLData]),
           expanded: false,
           id: null
-        }
-        const inverseProblemCategory = {
+        },
+        {
           name: '逆问题（Inverse Problem）',
           data: ref([...defaultInverseProblemData]),
           expanded: false,
           id: null
-        }
-        const compressedSensingCategory = {
+        },
+        {
           name: '压缩感知高光谱图像重建',
           data: ref([...defaultCompressedSensingData]),
           expanded: false,
           id: null
-        }
-        const defocusCategory = {
+        },
+        {
           name: '相机散焦过程（Defocus）',
           data: ref([...defaultDefocusData]),
           expanded: false,
           id: null
         }
-        
-        categoryMap.set('概率论', probabilityCategory)
-        categoryMap.set('优化理论', optimizationCategory)
-        categoryMap.set('Richardson-Lucy 反卷积算法', rlCategory)
-        categoryMap.set('逆问题（Inverse Problem）', inverseProblemCategory)
-        categoryMap.set('压缩感知高光谱图像重建', compressedSensingCategory)
-        categoryMap.set('相机散焦过程（Defocus）', defocusCategory)
+      ])
+
+      // 如果没有数据，使用默认数据并初始化到云端
+      if (categoryMap.size === 0) {
+        const defaultCategories = buildDefaultCategories()
+        defaultCategories.forEach(category => {
+          categoryMap.set(category.name, category)
+        })
         
         // 如果在线，初始化数据到云端
-        if (dataStore.isOnline && dataStore.currentLanguage === 'math') {
-          initCategoriesToCloud([probabilityCategory, optimizationCategory, rlCategory, inverseProblemCategory, compressedSensingCategory, defocusCategory])
+        if (dataStore.isOnline) {
+          initCategoriesToCloud(defaultCategories)
+        }
+      } else {
+        // 如果已有数据但缺少某些默认分类，补齐并同步
+        const defaultCategories = buildDefaultCategories()
+        const missingCategories = defaultCategories.filter(category => !categoryMap.has(category.name))
+        if (missingCategories.length > 0) {
+          missingCategories.forEach(category => {
+            categoryMap.set(category.name, category)
+          })
+          if (dataStore.isOnline) {
+            initCategoriesToCloud(missingCategories)
+          }
         }
       }
       
@@ -1146,9 +1617,14 @@ export default {
     const initCategoriesToCloud = async (categories) => {
       for (const category of categories) {
         try {
+          const dataArray = getCategoryDataArray(category)
+          if (!dataArray) {
+            console.error('初始化分类失败：分类数据无效', category.name)
+            continue
+          }
           const conceptDoc = {
             categoryName: category.name,
-            items: category.data.value.map(item => ({
+            items: dataArray.map(item => ({
               ...item,
               // 移除临时字段
               output1d: '',
@@ -1168,6 +1644,11 @@ export default {
 
     // 分类数据结构
     const categories = ref(loadCategoriesFromStore())
+
+    // 获取分类的实际数据数组（兼容 ref 和普通数组）
+    const getCategoryDataArray = (category) => {
+      return Array.isArray(category?.data) ? category.data : category?.data?.value
+    }
 
     // 添加/删除学科和概念相关的状态
     const showAddCategoryDialog = ref(false)
@@ -1236,11 +1717,6 @@ export default {
         return
       }
 
-      if (dataStore.currentLanguage !== 'math') {
-        console.warn('当前语言不是 math，无法保存数学概念')
-        return
-      }
-
       try {
         // 查找对应的 category
         const category = categories.value.find(cat => cat.name === categoryName)
@@ -1249,10 +1725,15 @@ export default {
           return
         }
 
+        const dataArray = getCategoryDataArray(category)
+        if (!dataArray) {
+          console.error('保存数学分类失败：分类数据无效', categoryName)
+          return
+        }
         // 构建要保存的数据
         const conceptDoc = {
           categoryName: categoryName,
-          items: category.data.value.map(item => ({
+          items: dataArray.map(item => ({
             ...item,
             // 移除临时字段
             output1d: '',
@@ -1731,7 +2212,11 @@ export default {
         }
 
         // 添加到本地
-        category.data.value.push({ ...newItem.value })
+        const dataArray = getCategoryDataArray(category)
+        if (!dataArray) {
+          throw new Error('分类数据无效，无法添加概念')
+        }
+        dataArray.push({ ...newItem.value })
 
         // 保存到云端
         await saveCategory(currentCategoryName.value)
@@ -1826,13 +2311,14 @@ export default {
 
       try {
         const category = categories.value.find(cat => cat.name === editingItem.value.categoryName)
-        if (!category || !category.data.value[editingItem.value.itemIndex]) {
+        const dataArray = getCategoryDataArray(category)
+        if (!category || !dataArray || !dataArray[editingItem.value.itemIndex]) {
           alert('找不到该概念')
           return
         }
 
         // 更新本地数据
-        const item = category.data.value[editingItem.value.itemIndex]
+        const item = dataArray[editingItem.value.itemIndex]
         Object.assign(item, editingItem.value.itemData)
 
         // 保存到云端
@@ -1895,7 +2381,11 @@ export default {
         }
 
         // 从本地删除
-        category.data.value.splice(itemIndex, 1)
+        const dataArray = getCategoryDataArray(category)
+        if (!dataArray) {
+          throw new Error('分类数据无效，无法删除概念')
+        }
+        dataArray.splice(itemIndex, 1)
 
         // 保存到云端
         await saveCategory(categoryName)
@@ -1909,10 +2399,10 @@ export default {
 
     // 在组件挂载时初始化
     onMounted(async () => {
-      // 如果当前语言是 math，确保数据已同步
-      if (dataStore.currentLanguage === 'math' && dataStore.isOnline) {
+      // 确保数学概念已同步（独立于当前语言）
+      if (dataStore.isOnline) {
         try {
-          await dataStore.syncFromCloud()
+          await dataStore.syncMathConceptsFromCloud()
         } catch (error) {
           console.error('同步数学数据失败:', error)
         }
