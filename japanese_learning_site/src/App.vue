@@ -11,6 +11,9 @@
           <router-link to="/math-table" class="nav-link-btn" :class="{ 'active': $route.path === '/math-table' }">
             📊 数学概念表格
           </router-link>
+          <router-link to="/dictionary" class="nav-link-btn" :class="{ 'active': $route.path === '/dictionary' }">
+            📚 字典系统区
+          </router-link>
         </div>
         <div class="user-id-display">
           <div class="device-info">
@@ -46,11 +49,6 @@
           <!-- 语言切换按钮 -->
           <button @click="toggleLanguage" class="nav-button language-btn" :disabled="dataStore.syncInProgress" title="切换显示语言">
             ↔️
-          </button>
-          
-          <!-- 检测重复数据按钮 -->
-          <button @click="checkDuplicates" class="nav-button duplicate-btn" :disabled="dataStore.syncInProgress" title="检测并删除重复数据">
-            🔍
           </button>
           
           <!-- 认证按钮 -->
@@ -204,100 +202,6 @@ export default {
       }
     }
 
-    // 检测并删除重复数据
-    const checkDuplicates = async () => {
-      console.log('🔍 开始检测并删除重复数据...')
-      
-      let deletedCount = 0
-      
-      try {
-        // 检测并删除重复单词
-        const wordKeys = new Set()
-        const wordsToDelete = []
-        
-        dataStore.words.forEach((word, index) => {
-          const key = `${word.japanese}|${word.chinese}`
-          if (wordKeys.has(key)) {
-            wordsToDelete.push({ index, word, key })
-          } else {
-            wordKeys.add(key)
-          }
-        })
-
-        // 删除重复单词
-        for (const duplicate of wordsToDelete.reverse()) {
-          try {
-            await dataStore.deleteWord(duplicate.word.id)
-            deletedCount++
-            console.log('🗑️ 删除重复单词:', duplicate.word.japanese)
-          } catch (error) {
-            console.error('删除单词失败:', error)
-          }
-        }
-
-        // 检测并删除重复句子
-        const sentenceKeys = new Set()
-        const sentencesToDelete = []
-        
-        dataStore.sentences.forEach((sentence, index) => {
-          const key = `${sentence.japanese}|${sentence.chinese}`
-          if (sentenceKeys.has(key)) {
-            sentencesToDelete.push({ index, sentence, key })
-          } else {
-            sentenceKeys.add(key)
-          }
-        })
-
-        // 删除重复句子
-        for (const duplicate of sentencesToDelete.reverse()) {
-          try {
-            await dataStore.deleteSentence(duplicate.sentence.id)
-            deletedCount++
-            console.log('🗑️ 删除重复句子:', duplicate.sentence.japanese)
-          } catch (error) {
-            console.error('删除句子失败:', error)
-          }
-        }
-
-        // 检测并删除重复问答
-        const qaKeys = new Set()
-        const qaToDelete = []
-        
-        dataStore.qa.forEach((qa, index) => {
-          const key = `${qa.question}|${qa.answer}`
-          if (qaKeys.has(key)) {
-            qaToDelete.push({ index, qa, key })
-          } else {
-            qaKeys.add(key)
-          }
-        })
-
-        // 删除重复问答
-        for (const duplicate of qaToDelete.reverse()) {
-          try {
-            await dataStore.deleteQA(duplicate.qa.id)
-            deletedCount++
-            console.log('🗑️ 删除重复问答:', duplicate.qa.question)
-          } catch (error) {
-            console.error('删除问答失败:', error)
-          }
-        }
-
-        // 显示结果
-        if (deletedCount > 0) {
-          alert(`✅ 成功删除 ${deletedCount} 个重复数据！\n- 重复单词: ${wordsToDelete.length} 个\n- 重复句子: ${sentencesToDelete.length} 个\n- 重复问答: ${qaToDelete.length} 个`)
-        } else {
-          alert('✅ 没有发现重复数据！')
-        }
-
-        console.log(`🎉 重复数据清理完成，共删除 ${deletedCount} 个重复项`)
-
-      } catch (error) {
-        console.error('删除重复数据时出错:', error)
-        alert('❌ 删除重复数据时出错，请查看控制台')
-      }
-    }
-
     // 格式化同步时间
     const formatSyncTime = (timeString) => {
       if (!timeString) return ''
@@ -424,7 +328,6 @@ export default {
       isUserLoggedIn,
       toggleLanguage,
       switchLanguage,
-      checkDuplicates,
       formatSyncTime,
       clearLogs,
       copyLogs
@@ -657,16 +560,6 @@ export default {
 
 .language-btn:hover:not(:disabled) {
   background: rgba(33, 150, 243, 0.3);
-}
-
-.duplicate-btn {
-  background: rgba(255, 193, 7, 0.2);
-  color: #FFC107;
-}
-
-.duplicate-btn:hover:not(:disabled) {
-  background: rgba(255, 193, 7, 0.4);
-  color: #FFD54F;
 }
 
 .auth-btn:hover:not(:disabled) {

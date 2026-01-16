@@ -154,27 +154,60 @@ export default {
       return user?.email || null
     })
 
-    const signInWithGoogle = async () => {
+    const signInWithGoogle = async (retryCount = 0) => {
       loading.value = true
       error.value = ''
       try {
-        console.log('开始 Google 登录...')
+        console.log('开始 Google 登录...', retryCount > 0 ? `(重试 ${retryCount})` : '')
         console.log('注意：将弹出 Google 登录窗口，请在弹出窗口中输入您的 Google 账号和密码')
         
         // 添加提示信息
-        error.value = '正在打开 Google 登录窗口，请在弹出的窗口中输入您的 Google 账号和密码...'
+        if (retryCount === 0) {
+          error.value = '正在打开 Google 登录窗口，请在弹出的窗口中输入您的 Google 账号和密码...'
+        } else {
+          error.value = `正在重试登录... (${retryCount}/2)`
+        }
         
         const user = await authService.signInWithGoogle()
         console.log('Google 登录成功:', user)
         error.value = '' // 登录成功后清除提示
       } catch (err) {
         console.error('Google 登录失败详情:', err)
+        
+        // 处理 sessionStorage 错误，提供重试机制
+        const isSessionStorageError = err.code === 'auth/session-storage-error' || 
+                                      err.message?.includes('missing initial state') ||
+                                      err.message?.includes('sessionStorage') ||
+                                      err.code === 'auth/unauthorized-domain'
+        
+        if (isSessionStorageError && retryCount < 2) {
+          // 如果是 sessionStorage 错误且未达到重试上限，等待后重试
+          console.log(`检测到会话存储问题，${2 - retryCount} 秒后重试...`)
+          error.value = `检测到会话存储问题，${2 - retryCount} 秒后自动重试...`
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          return signInWithGoogle(retryCount + 1)
+        }
+        
+        // 处理各种错误情况
         if (err.code === 'auth/popup-closed-by-user') {
           error.value = '❌ 登录窗口已关闭。请重新点击"使用 Google 登录"按钮，然后在弹出的窗口中输入您的 Google 账号和密码。'
         } else if (err.code === 'auth/popup-blocked') {
           error.value = '❌ 登录窗口被浏览器阻止。请：\n1. 允许此网站的弹出窗口\n2. 重新点击"使用 Google 登录"按钮\n3. 在弹出的窗口中输入您的 Google 账号和密码'
         } else if (err.code === 'auth/unauthorized-domain') {
           error.value = '❌ 未授权的域名。请检查 Firebase 配置中的授权域名设置。'
+        } else if (isSessionStorageError) {
+          // sessionStorage 相关错误（已重试但仍失败）
+          error.value = '❌ 登录失败：浏览器会话存储问题。\n\n' +
+            '可能的原因：\n' +
+            '1. 浏览器阻止了会话存储访问（如隐私模式）\n' +
+            '2. 多个 Google 账号切换时会话状态丢失\n' +
+            '3. 浏览器安全设置限制\n\n' +
+            '解决方案：\n' +
+            '1. 刷新页面后重试（按 F5 或 Ctrl+R）\n' +
+            '2. 关闭隐私模式或允许会话存储\n' +
+            '3. 清除浏览器缓存和 Cookie 后重试\n' +
+            '4. 尝试使用其他浏览器\n' +
+            '5. 如果使用多个 Google 账号，请先退出其他账号'
         } else {
           error.value = `❌ 登录失败: ${err.message || '请检查网络连接和 Firebase 配置'}\n\n如果未看到登录窗口，请检查浏览器是否阻止了弹出窗口。`
         }

@@ -17,6 +17,8 @@ export const useDataStore = defineStore('data', {
     mathConcepts: [], // 数学概念数据（用于 MathTable 组件）
     reviewProgress: {},
     quizHistory: [],
+    // 单词分类树结构：{ language: { id: string, name: string, children: [] } }
+    wordCategories: {}, // 按语言存储分类树
     // 存储"没记住"的项目ID
     incorrectItems: {
       words: new Set(),
@@ -267,6 +269,101 @@ export const useDataStore = defineStore('data', {
       )
     },
 
+    // 自动检测并删除重复数据（静默执行，不显示提示）
+    async autoRemoveDuplicates(skipAutoCheck = false) {
+      if (!this.isOnline) {
+        return // 离线时不执行
+      }
+
+      // 如果已经在执行自动检查，则跳过（防止递归）
+      if (this._isAutoRemovingDuplicates) {
+        return
+      }
+
+      this._isAutoRemovingDuplicates = true
+
+      try {
+        // 检测并删除重复单词
+        const wordKeys = new Map() // 使用 Map 存储第一个出现的单词ID
+        const wordsToDelete = []
+        
+        this.words.forEach((word) => {
+          const key = `${word.japanese}|${word.chinese}`
+          if (wordKeys.has(key)) {
+            // 发现重复，标记为删除（保留第一个，删除后续的）
+            wordsToDelete.push(word.id)
+          } else {
+            wordKeys.set(key, word.id)
+          }
+        })
+
+        // 删除重复单词（直接调用 dataService，不触发自动检查）
+        for (const wordId of wordsToDelete) {
+          try {
+            await dataService.deleteData('words', wordId, this.currentLanguage)
+            console.log('🗑️ 自动删除重复单词:', wordId)
+          } catch (error) {
+            console.warn('自动删除重复单词失败:', error)
+          }
+        }
+
+        // 检测并删除重复句子
+        const sentenceKeys = new Map()
+        const sentencesToDelete = []
+        
+        this.sentences.forEach((sentence) => {
+          const key = `${sentence.japanese}|${sentence.chinese}`
+          if (sentenceKeys.has(key)) {
+            sentencesToDelete.push(sentence.id)
+          } else {
+            sentenceKeys.set(key, sentence.id)
+          }
+        })
+
+        // 删除重复句子（直接调用 dataService，不触发自动检查）
+        for (const sentenceId of sentencesToDelete) {
+          try {
+            await dataService.deleteData('sentences', sentenceId, this.currentLanguage)
+            console.log('🗑️ 自动删除重复句子:', sentenceId)
+          } catch (error) {
+            console.warn('自动删除重复句子失败:', error)
+          }
+        }
+
+        // 检测并删除重复问答
+        const qaKeys = new Map()
+        const qaToDelete = []
+        
+        this.qa.forEach((qa) => {
+          const key = `${qa.question}|${qa.answer}`
+          if (qaKeys.has(key)) {
+            qaToDelete.push(qa.id)
+          } else {
+            qaKeys.set(key, qa.id)
+          }
+        })
+
+        // 删除重复问答（直接调用 dataService，不触发自动检查）
+        for (const qaId of qaToDelete) {
+          try {
+            await dataService.deleteData('qa', qaId, this.currentLanguage)
+            console.log('🗑️ 自动删除重复问答:', qaId)
+          } catch (error) {
+            console.warn('自动删除重复问答失败:', error)
+          }
+        }
+
+        if (wordsToDelete.length > 0 || sentencesToDelete.length > 0 || qaToDelete.length > 0) {
+          console.log(`✅ 自动清理完成: 删除 ${wordsToDelete.length} 个重复单词, ${sentencesToDelete.length} 个重复句子, ${qaToDelete.length} 个重复问答`)
+        }
+      } catch (error) {
+        console.warn('自动检测重复数据时出错:', error)
+        // 静默失败，不影响主流程
+      } finally {
+        this._isAutoRemovingDuplicates = false
+      }
+    },
+
 
     // 初始化云端同步（基于 dataOwnerId，必须通过 Google 登录获得）
     async initializeCloudSync() {
@@ -485,6 +582,14 @@ export const useDataStore = defineStore('data', {
         const cloudWord = await dataService.addData('words', newWord, this.currentLanguage)
         console.log('单词添加成功:', cloudWord)
         // 数据会通过实时监听自动更新，不需要手动添加到本地
+        
+        // 添加后自动检测并删除重复数据（异步执行，不阻塞）
+        setTimeout(() => {
+          this.autoRemoveDuplicates().catch(err => {
+            console.warn('自动清理重复数据失败:', err)
+          })
+        }, 1000) // 延迟1秒，等待数据同步完成
+        
         return cloudWord
       } catch (error) {
         console.error('同步单词到云端失败:', error)
@@ -518,6 +623,13 @@ export const useDataStore = defineStore('data', {
         await dataService.deleteData('words', id, this.currentLanguage)
         console.log('单词删除成功')
         // 数据会通过实时监听自动更新
+        
+        // 删除后自动检测并删除重复数据（异步执行，不阻塞）
+        setTimeout(() => {
+          this.autoRemoveDuplicates().catch(err => {
+            console.warn('自动清理重复数据失败:', err)
+          })
+        }, 1000) // 延迟1秒，等待数据同步完成
       } catch (error) {
         console.error('从云端删除单词失败:', error)
         throw error
@@ -548,6 +660,14 @@ export const useDataStore = defineStore('data', {
         const cloudSentence = await dataService.addData('sentences', newSentence, this.currentLanguage)
         console.log('句子添加成功:', cloudSentence)
         // 数据会通过实时监听自动更新
+        
+        // 添加后自动检测并删除重复数据（异步执行，不阻塞）
+        setTimeout(() => {
+          this.autoRemoveDuplicates().catch(err => {
+            console.warn('自动清理重复数据失败:', err)
+          })
+        }, 1000) // 延迟1秒，等待数据同步完成
+        
         return cloudSentence
       } catch (error) {
         console.error('同步句子到云端失败:', error)
@@ -581,6 +701,13 @@ export const useDataStore = defineStore('data', {
         await dataService.deleteData('sentences', id, this.currentLanguage)
         console.log('句子删除成功')
         // 数据会通过实时监听自动更新
+        
+        // 删除后自动检测并删除重复数据（异步执行，不阻塞）
+        setTimeout(() => {
+          this.autoRemoveDuplicates().catch(err => {
+            console.warn('自动清理重复数据失败:', err)
+          })
+        }, 1000) // 延迟1秒，等待数据同步完成
       } catch (error) {
         console.error('从云端删除句子失败:', error)
         throw error
@@ -609,6 +736,14 @@ export const useDataStore = defineStore('data', {
         const cloudQA = await dataService.addData('qa', newQA, this.currentLanguage)
         console.log('问答添加成功:', cloudQA)
         // 数据会通过实时监听自动更新
+        
+        // 添加后自动检测并删除重复数据（异步执行，不阻塞）
+        setTimeout(() => {
+          this.autoRemoveDuplicates().catch(err => {
+            console.warn('自动清理重复数据失败:', err)
+          })
+        }, 1000) // 延迟1秒，等待数据同步完成
+        
         return cloudQA
       } catch (error) {
         console.error('同步问答到云端失败:', error)
@@ -642,6 +777,13 @@ export const useDataStore = defineStore('data', {
         await dataService.deleteData('qa', id, this.currentLanguage)
         console.log('问答删除成功')
         // 数据会通过实时监听自动更新
+        
+        // 删除后自动检测并删除重复数据（异步执行，不阻塞）
+        setTimeout(() => {
+          this.autoRemoveDuplicates().catch(err => {
+            console.warn('自动清理重复数据失败:', err)
+          })
+        }, 1000) // 延迟1秒，等待数据同步完成
       } catch (error) {
         console.error('从云端删除问答失败:', error)
         throw error
@@ -1665,9 +1807,28 @@ export const useDataStore = defineStore('data', {
           }
         }
         
+        // 导出所有语言的分类数据
+        const categoriesData = {}
+        for (const lang of this.supportedLanguages) {
+          // 从 localStorage 或 state 中获取分类数据
+          const localCategories = localStorage.getItem(`wordCategories_${lang.code}`)
+          if (localCategories) {
+            try {
+              categoriesData[lang.code] = JSON.parse(localCategories)
+            } catch (e) {
+              console.warn(`解析 ${lang.code} 分类数据失败:`, e)
+              categoriesData[lang.code] = this.wordCategories[lang.code] || []
+            }
+          } else {
+            categoriesData[lang.code] = this.wordCategories[lang.code] || []
+          }
+        }
+        
         const currentData = {
           // 所有语言的数据（确保包含所有支持的语言）
           languages: finalLanguagesData,
+          // 所有语言的分类数据
+          wordCategories: categoriesData,
           // 语言统计信息
           languageStats: languageStats,
           // 支持的语言列表
@@ -1679,8 +1840,8 @@ export const useDataStore = defineStore('data', {
           incorrectItems: incorrectItems,
           exportTime: new Date().toISOString(),
           userId: authService.getUserId(),
-          exportVersion: '3.0', // 版本号，用于标识支持多语言的导出格式
-          exportNote: '此导出包含所有语言的完整数据，以及分离的熟记区和集中复习区数据'
+          exportVersion: '3.1', // 版本号，用于标识支持分类数据的导出格式
+          exportNote: '此导出包含所有语言的完整数据、分类树结构，以及分离的熟记区和集中复习区数据'
         }
         
         // 最终验证导出数据
@@ -1808,10 +1969,26 @@ export const useDataStore = defineStore('data', {
         }
       })
       
+      // 导出当前语言的分类数据
+      const currentLangCategories = this.wordCategories[this.currentLanguage] || []
+      const localCategories = localStorage.getItem(`wordCategories_${this.currentLanguage}`)
+      let categoriesToExport = currentLangCategories
+      if (localCategories) {
+        try {
+          categoriesToExport = JSON.parse(localCategories)
+        } catch (e) {
+          console.warn('解析本地分类数据失败，使用 state 中的数据')
+        }
+      }
+      
       const allData = {
         words: this.words,
         sentences: this.sentences,
         qa: this.qa,
+        // 当前语言的分类数据
+        wordCategories: {
+          [this.currentLanguage]: categoriesToExport
+        },
         reviewProgress: this.reviewProgress, // 完整的复习进度（包含所有时间戳和标记）
         // 熟记区数据（已熟记的项目）
         masteredItems: masteredItems,
@@ -1819,8 +1996,8 @@ export const useDataStore = defineStore('data', {
         incorrectItems: incorrectItems,
         quizHistory: this.quizHistory,
         exportDate: new Date().toISOString(),
-        exportVersion: '2.0', // 版本号，用于标识新的导出格式
-        exportNote: '此导出包含完整的复习进度数据，以及分离的熟记区和集中复习区数据'
+        exportVersion: '2.1', // 版本号，用于标识支持分类数据的导出格式
+        exportNote: '此导出包含完整的复习进度数据、分类树结构，以及分离的熟记区和集中复习区数据'
       }
       return JSON.stringify(allData, null, 2)
     },
@@ -1962,6 +2139,32 @@ export const useDataStore = defineStore('data', {
             console.log(`${langCode} 语言导入完成:`, importStats[langCode])
           }
           
+          // 导入分类数据
+          if (data.wordCategories && typeof data.wordCategories === 'object') {
+            console.log('检测到分类数据，开始导入所有语言的分类...')
+            for (const langCode of Object.keys(data.wordCategories)) {
+              try {
+                const categories = data.wordCategories[langCode]
+                if (Array.isArray(categories)) {
+                  // 保存分类数据到 state 和 localStorage
+                  this.wordCategories[langCode] = categories
+                  localStorage.setItem(`wordCategories_${langCode}`, JSON.stringify(categories))
+                  
+                  // 如果在线，同步到云端
+                  if (this.isOnline) {
+                    await this.saveCategoriesToCloud(langCode)
+                  }
+                  
+                  console.log(`✅ ${langCode} 分类导入成功:`, categories.length, '个分类')
+                }
+              } catch (error) {
+                console.warn(`导入 ${langCode} 分类失败:`, error)
+              }
+            }
+          } else {
+            console.log('未检测到分类数据，跳过分类导入')
+          }
+          
           console.log('所有语言数据导入完成，统计:', importStats)
         } else {
           // 旧格式：单语言数据（向后兼容）
@@ -2038,6 +2241,30 @@ export const useDataStore = defineStore('data', {
               }
             }
           }
+          
+          // 导入分类数据（旧格式也支持）
+          if (data.wordCategories && typeof data.wordCategories === 'object') {
+            console.log('检测到分类数据，开始导入分类...')
+            for (const langCode of Object.keys(data.wordCategories)) {
+              try {
+                const categories = data.wordCategories[langCode]
+                if (Array.isArray(categories)) {
+                  // 保存分类数据到 state 和 localStorage
+                  this.wordCategories[langCode] = categories
+                  localStorage.setItem(`wordCategories_${langCode}`, JSON.stringify(categories))
+                  
+                  // 如果在线，同步到云端
+                  if (this.isOnline) {
+                    await this.saveCategoriesToCloud(langCode)
+                  }
+                  
+                  console.log(`✅ ${langCode} 分类导入成功:`, categories.length, '个分类')
+                }
+              } catch (error) {
+                console.warn(`导入 ${langCode} 分类失败:`, error)
+              }
+            }
+          }
         }
         
         // 导入复习进度（本地存储）
@@ -2054,6 +2281,210 @@ export const useDataStore = defineStore('data', {
         return true
       } catch (error) {
         console.error('导入数据失败:', error)
+        throw error
+      }
+    },
+
+    // 分类管理方法
+    // 初始化分类树（如果不存在）
+    initCategoryTree(language) {
+      if (!this.wordCategories[language]) {
+        this.wordCategories[language] = []
+      }
+    },
+
+    // 获取分类树
+    getCategoryTree(language) {
+      this.initCategoryTree(language)
+      return this.wordCategories[language] || []
+    },
+
+    // 添加分类
+    addCategory(language, parentPath, categoryName) {
+      this.initCategoryTree(language)
+      const newCategory = {
+        id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: categoryName,
+        children: []
+      }
+
+      if (!parentPath || parentPath.length === 0) {
+        // 根分类
+        this.wordCategories[language].push(newCategory)
+      } else {
+        // 找到父分类并添加
+        const parent = this.findCategoryByPath(language, parentPath)
+        if (parent) {
+          parent.children.push(newCategory)
+        } else {
+          throw new Error('找不到父分类')
+        }
+      }
+
+      // 保存到云端
+      this.saveCategoriesToCloud(language)
+      return newCategory
+    },
+
+    // 根据路径查找分类
+    findCategoryByPath(language, path) {
+      this.initCategoryTree(language)
+      if (!path || path.length === 0) {
+        return null
+      }
+
+      let current = this.wordCategories[language]
+      for (let i = 0; i < path.length; i++) {
+        const categoryName = path[i]
+        const found = current.find(cat => cat.name === categoryName)
+        if (!found) {
+          return null
+        }
+        if (i === path.length - 1) {
+          return found
+        }
+        current = found.children
+      }
+      return null
+    },
+
+    // 更新分类名称
+    async updateCategoryName(language, categoryPath, newName) {
+      const category = this.findCategoryByPath(language, categoryPath)
+      if (category) {
+        const oldName = category.name
+        category.name = newName
+        
+        // 同时更新所有使用该分类路径的单词
+        const updatePromises = []
+        this.words.forEach(word => {
+          if (word.categoryPath && word.categoryPath.length >= categoryPath.length) {
+            let match = true
+            for (let i = 0; i < categoryPath.length; i++) {
+              if (word.categoryPath[i] !== categoryPath[i]) {
+                match = false
+                break
+              }
+            }
+            if (match) {
+              // 更新路径中对应的分类名称
+              const newPath = [...word.categoryPath]
+              newPath[categoryPath.length - 1] = newName
+              updatePromises.push(this.updateWord(word.id, { categoryPath: newPath }))
+            }
+          }
+        })
+        
+        // 等待所有单词更新完成
+        await Promise.all(updatePromises)
+        await this.saveCategoriesToCloud(language)
+      }
+    },
+
+    // 删除分类
+    deleteCategory(language, categoryPath) {
+      if (categoryPath.length === 0) {
+        throw new Error('不能删除根分类')
+      }
+
+      const parentPath = categoryPath.slice(0, -1)
+      const categoryName = categoryPath[categoryPath.length - 1]
+      const parent = parentPath.length === 0 
+        ? { children: this.wordCategories[language] }
+        : this.findCategoryByPath(language, parentPath)
+
+      if (parent && parent.children) {
+        const index = parent.children.findIndex(cat => cat.name === categoryName)
+        if (index !== -1) {
+          parent.children.splice(index, 1)
+          // 将属于该分类的单词移到未分类
+          this.words.forEach(word => {
+            if (word.categoryPath && this.isPathPrefix(word.categoryPath, categoryPath)) {
+              this.updateWord(word.id, { categoryPath: [] })
+            }
+          })
+          this.saveCategoriesToCloud(language)
+        }
+      }
+    },
+
+    // 检查路径前缀
+    isPathPrefix(path, prefix) {
+      if (path.length < prefix.length) return false
+      for (let i = 0; i < prefix.length; i++) {
+        if (path[i] !== prefix[i]) return false
+      }
+      return true
+    },
+
+    // 保存分类到云端
+    async saveCategoriesToCloud(language) {
+      // 总是保存到 localStorage 作为备份
+      localStorage.setItem(`wordCategories_${language}`, JSON.stringify(this.wordCategories[language] || []))
+      
+      if (!this.isOnline) {
+        return
+      }
+
+      try {
+        // 使用 setDoc 直接保存到特殊集合
+        const { doc, setDoc } = await import('firebase/firestore')
+        const { db } = await import('../firebase/config.js')
+        const categoryDocRef = doc(db, `users/${getDataOwnerId()}/wordCategories/${language}`)
+        await setDoc(categoryDocRef, {
+          categories: this.wordCategories[language] || [],
+          updatedAt: new Date()
+        }, { merge: true })
+      } catch (error) {
+        console.error('保存分类到云端失败:', error)
+      }
+    },
+
+    // 从云端加载分类
+    async loadCategoriesFromCloud(language) {
+      // 先从 localStorage 加载（快速响应）
+      const localData = localStorage.getItem(`wordCategories_${language}`)
+      if (localData) {
+        try {
+          this.wordCategories[language] = JSON.parse(localData)
+        } catch (e) {
+          console.error('解析本地分类数据失败:', e)
+        }
+      }
+      
+      if (!this.isOnline) {
+        return
+      }
+
+      try {
+        // 从云端加载
+        const { doc, getDoc } = await import('firebase/firestore')
+        const { db } = await import('../firebase/config.js')
+        const categoryDocRef = doc(db, `users/${getDataOwnerId()}/wordCategories/${language}`)
+        const docSnap = await getDoc(categoryDocRef)
+        if (docSnap.exists()) {
+          const data = docSnap.data()
+          if (data && data.categories) {
+            this.wordCategories[language] = data.categories
+            // 更新 localStorage
+            localStorage.setItem(`wordCategories_${language}`, JSON.stringify(data.categories))
+          }
+        }
+      } catch (error) {
+        console.error('从云端加载分类失败:', error)
+      }
+    },
+
+    // 移动单词到新分类
+    async moveWordToCategory(wordId, newCategoryPath) {
+      if (!this.isOnline) {
+        throw new Error('需要网络连接才能更新数据')
+      }
+
+      try {
+        await this.updateWord(wordId, { categoryPath: newCategoryPath || [] })
+      } catch (error) {
+        console.error('移动单词分类失败:', error)
         throw error
       }
     }
